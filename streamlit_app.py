@@ -239,12 +239,16 @@ def create_score_visualization(scores):
     
     plt.tight_layout()
     
-    # Save to temporary file
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png', dir=tempfile.gettempdir())
-    plt.savefig(temp_file.name, dpi=300, bbox_inches='tight', facecolor='white')
-    plt.close()
-    
-    return temp_file.name
+    # Save to temporary file with better handling
+    try:
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+        plt.savefig(temp_file.name, dpi=300, bbox_inches='tight', facecolor='white')
+        plt.close()
+        temp_file.close()  # Ensure file is closed before returning
+        return temp_file.name
+    except Exception as e:
+        plt.close()  # Ensure matplotlib resources are cleaned up
+        raise e
 
 def create_flavor_wheel(selected_flavors):
     """Create a beautiful flavor wheel visualization"""
@@ -374,12 +378,16 @@ def create_flavor_wheel(selected_flavors):
     ax.set_title('Coffee Flavor Profile', size=16, fontweight='bold', pad=20)
     ax.axis('off')
     
-    # Save to temporary file
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png', dir=tempfile.gettempdir())
-    plt.savefig(temp_file.name, dpi=300, bbox_inches='tight', facecolor='white')
-    plt.close()
-    
-    return temp_file.name
+    # Save to temporary file with better handling
+    try:
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+        plt.savefig(temp_file.name, dpi=300, bbox_inches='tight', facecolor='white')
+        plt.close()
+        temp_file.close()  # Ensure file is closed before returning
+        return temp_file.name
+    except Exception as e:
+        plt.close()  # Ensure matplotlib resources are cleaned up
+        raise e
 
 def generate_cupping_pdf(session):
     """Generate PDF report for cupping session"""
@@ -463,12 +471,19 @@ def generate_cupping_pdf(session):
         # Create and add score visualization
         try:
             score_chart_path = create_score_visualization(session['scores'])
-            score_img = Image(score_chart_path, width=7*inch, height=3.5*inch)
-            story.append(score_img)
-            story.append(Spacer(1, 15))
-            
-            # Clean up temp file
-            os.unlink(score_chart_path)
+            if score_chart_path and os.path.exists(score_chart_path):
+                score_img = Image(score_chart_path, width=7*inch, height=3.5*inch)
+                story.append(score_img)
+                story.append(Spacer(1, 15))
+                
+                # Clean up temp file
+                try:
+                    os.unlink(score_chart_path)
+                except:
+                    pass  # Ignore cleanup errors
+            else:
+                story.append(Paragraph("Score visualization unavailable - chart not generated", styles['Normal']))
+                story.append(Spacer(1, 10))
         except Exception as e:
             story.append(Paragraph(f"Score visualization unavailable: {str(e)}", styles['Normal']))
             story.append(Spacer(1, 10))
@@ -523,13 +538,20 @@ def generate_cupping_pdf(session):
         if unique_flavors:
             try:
                 flavor_wheel_path = create_flavor_wheel(unique_flavors)
-                flavor_img = Image(flavor_wheel_path, width=6*inch, height=6*inch)
-                story.append(Spacer(1, 15))
-                story.append(flavor_img)
-                story.append(Spacer(1, 10))
-                
-                # Clean up temp file
-                os.unlink(flavor_wheel_path)
+                if flavor_wheel_path and os.path.exists(flavor_wheel_path):
+                    flavor_img = Image(flavor_wheel_path, width=6*inch, height=6*inch)
+                    story.append(Spacer(1, 15))
+                    story.append(flavor_img)
+                    story.append(Spacer(1, 10))
+                    
+                    # Clean up temp file
+                    try:
+                        os.unlink(flavor_wheel_path)
+                    except:
+                        pass  # Ignore cleanup errors
+                else:
+                    story.append(Paragraph("Flavor wheel unavailable - chart not generated", styles['Normal']))
+                    story.append(Spacer(1, 10))
             except Exception as e:
                 story.append(Paragraph(f"Flavor wheel unavailable: {str(e)}", styles['Normal']))
                 story.append(Spacer(1, 10))
