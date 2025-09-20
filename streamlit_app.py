@@ -6,8 +6,13 @@ from io import BytesIO
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.units import inch
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import numpy as np
+from matplotlib.patches import Wedge
+import tempfile
 
 # Page configuration
 st.set_page_config(
@@ -138,6 +143,244 @@ def get_language():
         st.session_state.language = 'en'
     return st.session_state.language
 
+def create_score_visualization(scores):
+    """Create a visual representation of cupping scores"""
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+    
+    # Score radar chart
+    categories = ['Fragrance', 'Flavor', 'Aftertaste', 'Acidity', 'Body', 'Balance', 'Overall']
+    
+    # Create radar chart for first sample (or average if multiple)
+    if scores:
+        if len(scores) == 1:
+            values = [scores[0][cat.lower()] for cat in categories]
+            sample_name = scores[0]['sample_name']
+        else:
+            # Average of all samples
+            values = []
+            for cat in categories:
+                avg_val = sum(score[cat.lower()] for score in scores) / len(scores)
+                values.append(avg_val)
+            sample_name = f"Average of {len(scores)} samples"
+        
+        # Number of variables
+        N = len(categories)
+        
+        # Compute angle of each axis
+        angles = [n / float(N) * 2 * np.pi for n in range(N)]
+        angles += angles[:1]  # Complete the circle
+        
+        # Add values for completion
+        values += values[:1]
+        
+        # Plot
+        ax1.set_theta_offset(np.pi / 2)
+        ax1.set_theta_direction(-1)
+        ax1.plot(angles, values, 'o-', linewidth=2, label=sample_name, color='#8B4513')
+        ax1.fill(angles, values, alpha=0.25, color='#D2B48C')
+        ax1.set_xticks(angles[:-1])
+        ax1.set_xticklabels(categories)
+        ax1.set_ylim(6, 10)
+        ax1.set_title('SCA Cupping Scores', size=14, fontweight='bold', pad=20)
+        ax1.grid(True)
+        
+        # Add score labels
+        for angle, value, category in zip(angles[:-1], values[:-1], categories):
+            ax1.text(angle, value + 0.1, f'{value:.1f}', 
+                    ha='center', va='center', fontsize=9, fontweight='bold')
+    
+    # Overall score gauge
+    if scores:
+        total_scores = [score['total'] for score in scores]
+        avg_total = sum(total_scores) / len(total_scores)
+        
+        # Create gauge chart
+        ax2.set_xlim(-1.5, 1.5)
+        ax2.set_ylim(-1.5, 1.5)
+        ax2.set_aspect('equal')
+        
+        # Create gauge sections
+        colors_gauge = ['#dc3545', '#fd7e14', '#ffc107', '#17a2b8', '#28a745']
+        labels = ['Fair\n(<75)', 'Good\n(75-79)', 'Very Good\n(80-84)', 'Excellent\n(85-89)', 'Outstanding\n(90+)']
+        ranges = [75, 80, 85, 90, 100]
+        
+        for i, (color, label, end_range) in enumerate(zip(colors_gauge, labels, ranges)):
+            start_angle = 180 - (i * 36)
+            end_angle = 180 - ((i + 1) * 36)
+            
+            wedge = Wedge((0, 0), 1, end_angle, start_angle, 
+                         facecolor=color, alpha=0.7, edgecolor='white', linewidth=2)
+            ax2.add_patch(wedge)
+            
+            # Add labels
+            mid_angle = np.radians((start_angle + end_angle) / 2)
+            label_x = 0.7 * np.cos(mid_angle)
+            label_y = 0.7 * np.sin(mid_angle)
+            ax2.text(label_x, label_y, label, ha='center', va='center', 
+                    fontsize=8, fontweight='bold')
+        
+        # Add needle
+        score_angle = 180 - ((avg_total - 70) / 30 * 180)
+        needle_angle = np.radians(score_angle)
+        needle_x = 0.8 * np.cos(needle_angle)
+        needle_y = 0.8 * np.sin(needle_angle)
+        
+        ax2.arrow(0, 0, needle_x, needle_y, head_width=0.05, head_length=0.1,
+                 fc='black', ec='black', linewidth=3)
+        
+        # Add score text
+        ax2.text(0, -0.3, f'{avg_total:.1f}', ha='center', va='center',
+                fontsize=20, fontweight='bold', color='#8B4513')
+        ax2.text(0, -0.5, 'SCA Score', ha='center', va='center',
+                fontsize=12, fontweight='bold')
+        
+        ax2.set_title('Overall Score', size=14, fontweight='bold', pad=20)
+        ax2.axis('off')
+    
+    plt.tight_layout()
+    
+    # Save to temporary file
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png', dir=tempfile.gettempdir())
+    plt.savefig(temp_file.name, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
+    
+    return temp_file.name
+
+def create_flavor_wheel(selected_flavors):
+    """Create a beautiful flavor wheel visualization"""
+    fig, ax = plt.subplots(figsize=(10, 10))
+    
+    # SCA Flavor categories with colors
+    flavor_categories = {
+        'Fruity': {
+            'color': '#FF6B6B',
+            'subcategories': {
+                'Citrus': ['Grapefruit', 'Orange', 'Lemon', 'Lime'],
+                'Berry': ['Blackberry', 'Raspberry', 'Blueberry', 'Strawberry'],
+                'Stone Fruit': ['Peach', 'Apricot', 'Plum', 'Cherry'],
+                'Tropical': ['Pineapple', 'Mango', 'Papaya', 'Coconut']
+            }
+        },
+        'Floral': {
+            'color': '#FF69B4',
+            'subcategories': {
+                'Floral': ['Rose', 'Jasmine', 'Lavender', 'Chamomile'],
+                'Tea-like': ['Black Tea', 'Earl Grey']
+            }
+        },
+        'Sweet': {
+            'color': '#FFD700',
+            'subcategories': {
+                'Brown Sugar': ['Molasses', 'Maple Syrup', 'Caramel', 'Honey'],
+                'Vanilla': ['Vanilla'],
+                'Chocolate': ['Dark Chocolate', 'Milk Chocolate']
+            }
+        },
+        'Nutty': {
+            'color': '#DEB887',
+            'subcategories': {
+                'Tree Nuts': ['Almond', 'Hazelnut', 'Walnut', 'Pecan'],
+                'Legumes': ['Peanut']
+            }
+        },
+        'Green': {
+            'color': '#90EE90',
+            'subcategories': {
+                'Fresh': ['Green', 'Underripe'],
+                'Dried': ['Hay', 'Herb-like']
+            }
+        },
+        'Roasted': {
+            'color': '#8B4513',
+            'subcategories': {
+                'Grain': ['Bread', 'Malt', 'Rice'],
+                'Burnt': ['Smoky', 'Ashy', 'Acrid']
+            }
+        }
+    }
+    
+    # Create concentric circles for the wheel
+    ax.set_xlim(-3, 3)
+    ax.set_ylim(-3, 3)
+    ax.set_aspect('equal')
+    
+    # Draw the wheel
+    total_categories = len(flavor_categories)
+    angle_per_category = 360 / total_categories
+    
+    for i, (category, data) in enumerate(flavor_categories.items()):
+        start_angle = i * angle_per_category
+        end_angle = (i + 1) * angle_per_category
+        
+        # Main category wedge (outer ring)
+        wedge = Wedge((0, 0), 2.5, start_angle, end_angle,
+                     width=0.5, facecolor=data['color'], alpha=0.8,
+                     edgecolor='white', linewidth=2)
+        ax.add_patch(wedge)
+        
+        # Category label
+        mid_angle = np.radians((start_angle + end_angle) / 2)
+        label_x = 2.7 * np.cos(mid_angle)
+        label_y = 2.7 * np.sin(mid_angle)
+        ax.text(label_x, label_y, category, ha='center', va='center',
+               fontsize=12, fontweight='bold', rotation=0)
+        
+        # Subcategories (inner rings)
+        subcats = list(data['subcategories'].keys())
+        if subcats:
+            subcat_angle = angle_per_category / len(subcats)
+            for j, subcat in enumerate(subcats):
+                sub_start = start_angle + j * subcat_angle
+                sub_end = start_angle + (j + 1) * subcat_angle
+                
+                # Subcategory wedge
+                sub_wedge = Wedge((0, 0), 2.0, sub_start, sub_end,
+                                width=0.5, facecolor=data['color'], alpha=0.6,
+                                edgecolor='white', linewidth=1)
+                ax.add_patch(sub_wedge)
+                
+                # Check if any flavors from this subcategory are selected
+                subcat_flavors = data['subcategories'][subcat]
+                selected_in_subcat = [f for f in selected_flavors if f in subcat_flavors]
+                
+                if selected_in_subcat:
+                    # Highlight selected subcategory
+                    highlight_wedge = Wedge((0, 0), 2.0, sub_start, sub_end,
+                                          width=0.5, facecolor='gold', alpha=0.9,
+                                          edgecolor='red', linewidth=3)
+                    ax.add_patch(highlight_wedge)
+                    
+                    # Add selected flavor text
+                    sub_mid_angle = np.radians((sub_start + sub_end) / 2)
+                    text_x = 1.3 * np.cos(sub_mid_angle)
+                    text_y = 1.3 * np.sin(sub_mid_angle)
+                    ax.text(text_x, text_y, '✓', ha='center', va='center',
+                           fontsize=16, fontweight='bold', color='red')
+    
+    # Center circle
+    center_circle = plt.Circle((0, 0), 1.0, facecolor='white', edgecolor='#8B4513', linewidth=3)
+    ax.add_patch(center_circle)
+    
+    # Title in center
+    ax.text(0, 0.2, 'SCA', ha='center', va='center', fontsize=16, fontweight='bold', color='#8B4513')
+    ax.text(0, -0.2, 'Flavor Wheel', ha='center', va='center', fontsize=12, fontweight='bold', color='#8B4513')
+    
+    # Legend for selected flavors
+    if selected_flavors:
+        legend_text = "Selected Flavors:\n" + "\n".join([f"• {flavor}" for flavor in selected_flavors[:8]])
+        ax.text(3.5, 2, legend_text, ha='left', va='top', fontsize=10,
+               bbox=dict(boxstyle="round,pad=0.3", facecolor='lightyellow', alpha=0.8))
+    
+    ax.set_title('Coffee Flavor Profile', size=16, fontweight='bold', pad=20)
+    ax.axis('off')
+    
+    # Save to temporary file
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png', dir=tempfile.gettempdir())
+    plt.savefig(temp_file.name, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
+    
+    return temp_file.name
+
 def generate_cupping_pdf(session):
     """Generate PDF report for cupping session"""
     buffer = BytesIO()
@@ -214,8 +457,21 @@ def generate_cupping_pdf(session):
     
     # Scores (if available)
     if session.get('status') == 'Scored' and 'scores' in session:
-        story.append(Paragraph("Cupping Scores", styles['Heading2']))
+        story.append(Paragraph("Cupping Scores & Visual Analysis", styles['Heading2']))
         story.append(Spacer(1, 12))
+        
+        # Create and add score visualization
+        try:
+            score_chart_path = create_score_visualization(session['scores'])
+            score_img = Image(score_chart_path, width=7*inch, height=3.5*inch)
+            story.append(score_img)
+            story.append(Spacer(1, 15))
+            
+            # Clean up temp file
+            os.unlink(score_chart_path)
+        except Exception as e:
+            story.append(Paragraph(f"Score visualization unavailable: {str(e)}", styles['Normal']))
+            story.append(Spacer(1, 10))
         
         # Scores table header
         score_data = [['Sample', 'Fragrance', 'Flavor', 'Aftertaste', 'Acidity', 'Body', 'Balance', 'Overall', 'Total']]
@@ -250,13 +506,33 @@ def generate_cupping_pdf(session):
         story.append(Spacer(1, 20))
         
         # Flavor notes
-        story.append(Paragraph("Tasting Notes", styles['Heading2']))
+        story.append(Paragraph("Tasting Notes & Flavor Profile", styles['Heading2']))
         story.append(Spacer(1, 12))
         
+        # Collect all selected flavors from all samples
+        all_selected_flavors = []
         for score in session['scores']:
+            if score.get('selected_flavors'):
+                all_selected_flavors.extend(score['selected_flavors'])
             if score.get('notes'):
                 story.append(Paragraph(f"<b>{score['sample_name']}:</b> {score['notes']}", styles['Normal']))
                 story.append(Spacer(1, 8))
+        
+        # Remove duplicates and create flavor wheel
+        unique_flavors = list(set(all_selected_flavors))
+        if unique_flavors:
+            try:
+                flavor_wheel_path = create_flavor_wheel(unique_flavors)
+                flavor_img = Image(flavor_wheel_path, width=6*inch, height=6*inch)
+                story.append(Spacer(1, 15))
+                story.append(flavor_img)
+                story.append(Spacer(1, 10))
+                
+                # Clean up temp file
+                os.unlink(flavor_wheel_path)
+            except Exception as e:
+                story.append(Paragraph(f"Flavor wheel unavailable: {str(e)}", styles['Normal']))
+                story.append(Spacer(1, 10))
         
         # Session notes
         if session.get('session_notes'):
