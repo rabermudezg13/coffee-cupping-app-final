@@ -59,7 +59,8 @@ def save_data():
         data = {
             "users": st.session_state.get('registered_users', {}),
             "sessions": st.session_state.get('cupping_sessions', []),
-            "reviews": st.session_state.get('coffee_reviews', [])
+            "reviews": st.session_state.get('coffee_reviews', []),
+            "coffee_shops": st.session_state.get('coffee_shops', [])
         }
         
         # Validate data before saving
@@ -69,6 +70,8 @@ def save_data():
             data["sessions"] = []
         if not isinstance(data["reviews"], list):
             data["reviews"] = []
+        if not isinstance(data["coffee_shops"], list):
+            data["coffee_shops"] = []
             
         with open(DATA_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -85,6 +88,7 @@ def init_data():
         st.session_state.registered_users = data.get("users", {})
         st.session_state.cupping_sessions = data.get("sessions", [])
         st.session_state.coffee_reviews = data.get("reviews", [])
+        st.session_state.coffee_shops = data.get("coffee_shops", [])
         st.session_state.data_loaded = True
     
     # Always ensure these exist as lists/dicts
@@ -94,6 +98,8 @@ def init_data():
         st.session_state.cupping_sessions = []
     if 'coffee_reviews' not in st.session_state:
         st.session_state.coffee_reviews = []
+    if 'coffee_shops' not in st.session_state:
+        st.session_state.coffee_shops = []
 
 def get_language():
     if 'language' not in st.session_state:
@@ -256,7 +262,8 @@ def show_main_app():
         page = st.radio("", [
             f"📊 {get_text('dashboard')}", 
             f"☕ {get_text('cupping_sessions')}", 
-            f"📝 {get_text('coffee_reviews')}", 
+            f"📝 {get_text('coffee_reviews')}",
+            f"🏪 Coffee Shops", 
             f"👤 {get_text('profile')}"
         ])
     
@@ -267,6 +274,8 @@ def show_main_app():
         show_cupping_sessions()
     elif page.endswith(get_text('coffee_reviews')):
         show_coffee_reviews()
+    elif page.endswith("Coffee Shops"):
+        show_coffee_shops()
     elif page.endswith(get_text('profile')):
         show_profile()
 
@@ -287,6 +296,305 @@ def show_dashboard():
     st.markdown("---")
     st.subheader("Recent Activity")
     st.success("✅ Welcome to your coffee cupping dashboard!")
+
+def show_coffee_shops():
+    st.title("🏪 Coffee Shop Reviews")
+    
+    tab1, tab2, tab3 = st.tabs(["🆕 New Review", "📋 My Reviews", "📊 Analysis"])
+    
+    with tab1:
+        st.subheader("🆕 Review Coffee Shop")
+        
+        with st.form("coffee_shop_review"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                shop_name = st.text_input("Coffee Shop Name *")
+                location = st.text_input("Location/Address")
+                city = st.text_input("City *")
+                visit_date = st.date_input("Visit Date", value=date.today())
+                
+            with col2:
+                shop_type = st.selectbox("Shop Type", [
+                    "", "Specialty Coffee", "Chain Store", "Local Café", 
+                    "Roastery Café", "Third Wave", "Traditional Café"
+                ])
+                atmosphere = st.selectbox("Atmosphere", [
+                    "", "Cozy", "Modern", "Industrial", "Vintage", 
+                    "Minimalist", "Bustling", "Quiet"
+                ])
+                wifi = st.checkbox("WiFi Available")
+                laptop_friendly = st.checkbox("Laptop Friendly")
+            
+            # Coffee evaluation
+            st.markdown("### ☕ Coffee Quality")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                coffee_ordered = st.text_input("Coffee Ordered")
+                brewing_method = st.selectbox("Brewing Method", [
+                    "", "Espresso", "Pour Over", "French Press", "Aeropress", 
+                    "Cold Brew", "Drip Coffee", "Other"
+                ])
+                coffee_rating = st.select_slider("Coffee Quality", 
+                                               options=[1,2,3,4,5], 
+                                               value=3,
+                                               format_func=lambda x: "⭐" * x)
+            
+            with col2:
+                beans_origin = st.text_input("Bean Origin (if known)")
+                roast_level = st.selectbox("Roast Level", ["", "Light", "Medium", "Dark", "Unknown"])
+                price_coffee = st.number_input("Coffee Price ($)", min_value=0.0, step=0.25, format="%.2f")
+            
+            # Service and experience
+            st.markdown("### 🛎️ Service & Experience")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                service_rating = st.select_slider("Service Quality", 
+                                                options=[1,2,3,4,5], 
+                                                value=3,
+                                                format_func=lambda x: "⭐" * x)
+                atmosphere_rating = st.select_slider("Atmosphere", 
+                                                   options=[1,2,3,4,5], 
+                                                   value=3,
+                                                   format_func=lambda x: "⭐" * x)
+            
+            with col2:
+                value_rating = st.select_slider("Value for Money", 
+                                              options=[1,2,3,4,5], 
+                                              value=3,
+                                              format_func=lambda x: "⭐" * x)
+                cleanliness_rating = st.select_slider("Cleanliness", 
+                                                    options=[1,2,3,4,5], 
+                                                    value=3,
+                                                    format_func=lambda x: "⭐" * x)
+            
+            # Additional details
+            st.markdown("### 📝 Additional Details")
+            food_available = st.checkbox("Food Available")
+            if food_available:
+                food_quality = st.select_slider("Food Quality", 
+                                               options=[1,2,3,4,5], 
+                                               value=3,
+                                               format_func=lambda x: "⭐" * x)
+            else:
+                food_quality = 0
+            
+            seating_comfort = st.selectbox("Seating Comfort", [
+                "", "Very Comfortable", "Comfortable", "Average", "Uncomfortable"
+            ])
+            
+            noise_level = st.selectbox("Noise Level", [
+                "", "Very Quiet", "Quiet", "Moderate", "Loud", "Very Loud"
+            ])
+            
+            # Overall review
+            st.markdown("### 🌟 Overall Review")
+            overall_rating = st.select_slider("Overall Experience", 
+                                            options=[1,2,3,4,5], 
+                                            value=3,
+                                            format_func=lambda x: "⭐" * x)
+            
+            highlights = st.text_area("Highlights", placeholder="What did you love about this place?")
+            improvements = st.text_area("Areas for Improvement", placeholder="What could be better?")
+            notes = st.text_area("Additional Notes", placeholder="Any other observations...")
+            
+            would_return = st.radio("Would you return?", ["Definitely", "Probably", "Maybe", "Probably Not", "Never"])
+            would_recommend = st.radio("Would you recommend?", ["Highly Recommend", "Recommend", "Neutral", "Not Recommend"])
+            
+            submit = st.form_submit_button("💾 Save Coffee Shop Review", use_container_width=True)
+            
+            if submit:
+                if not shop_name:
+                    st.error("❌ Coffee shop name is required")
+                elif not city:
+                    st.error("❌ City is required")
+                else:
+                    # Ensure coffee_shops exists and is a list
+                    if 'coffee_shops' not in st.session_state:
+                        st.session_state.coffee_shops = []
+                    elif not isinstance(st.session_state.coffee_shops, list):
+                        st.session_state.coffee_shops = []
+                    
+                    # Calculate overall score
+                    scores = [coffee_rating, service_rating, atmosphere_rating, value_rating, cleanliness_rating]
+                    if food_available and food_quality > 0:
+                        scores.append(food_quality)
+                    
+                    avg_score = sum(scores) / len(scores)
+                    
+                    review = {
+                        'shop_name': shop_name,
+                        'location': location,
+                        'city': city,
+                        'visit_date': visit_date.strftime('%Y-%m-%d'),
+                        'shop_type': shop_type or "Unknown",
+                        'atmosphere': atmosphere or "Unknown",
+                        'wifi': wifi,
+                        'laptop_friendly': laptop_friendly,
+                        'coffee_ordered': coffee_ordered,
+                        'brewing_method': brewing_method or "Unknown",
+                        'coffee_rating': coffee_rating,
+                        'beans_origin': beans_origin,
+                        'roast_level': roast_level or "Unknown",
+                        'price_coffee': price_coffee,
+                        'service_rating': service_rating,
+                        'atmosphere_rating': atmosphere_rating,
+                        'value_rating': value_rating,
+                        'cleanliness_rating': cleanliness_rating,
+                        'food_available': food_available,
+                        'food_quality': food_quality,
+                        'seating_comfort': seating_comfort or "Unknown",
+                        'noise_level': noise_level or "Unknown",
+                        'overall_rating': overall_rating,
+                        'avg_score': avg_score,
+                        'highlights': highlights,
+                        'improvements': improvements,
+                        'notes': notes,
+                        'would_return': would_return,
+                        'would_recommend': would_recommend,
+                        'reviewer': st.session_state.get('user_data', {}).get('name', 'User'),
+                        'review_date': datetime.now().strftime('%Y-%m-%d %H:%M')
+                    }
+                    
+                    try:
+                        st.session_state.coffee_shops.append(review)
+                        # Auto-save after creating review
+                        save_data()
+                        st.success("✅ Coffee shop review saved successfully!")
+                        st.balloons()
+                    except Exception as e:
+                        st.error(f"Error saving review: {e}")
+                        st.session_state.coffee_shops = []  # Reset if corrupted
+    
+    with tab2:
+        st.subheader("📋 My Coffee Shop Reviews")
+        
+        if 'coffee_shops' in st.session_state and st.session_state.coffee_shops:
+            # Sort by visit date (newest first)
+            sorted_reviews = sorted(st.session_state.coffee_shops, 
+                                  key=lambda x: x['visit_date'], reverse=True)
+            
+            for review in sorted_reviews:
+                # Overall rating color
+                if review['overall_rating'] >= 4:
+                    rating_color = "#28a745"
+                elif review['overall_rating'] >= 3:
+                    rating_color = "#ffc107" 
+                else:
+                    rating_color = "#dc3545"
+                
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    st.markdown(f"### 🏪 {review['shop_name']}")
+                    st.markdown(f"📍 **{review['city']}** | 📅 **{review['visit_date']}** | ☕ **{review['coffee_ordered']}**")
+                
+                with col2:
+                    st.markdown(f"""
+                    <div style="background: {rating_color}; color: white; padding: 0.5rem; border-radius: 10px; text-align: center;">
+                        <h3 style="margin: 0;">{"⭐" * review['overall_rating']}</h3>
+                        <p style="margin: 0; font-size: 0.8rem;">Overall</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                # Details in columns
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.markdown(f"""
+                    **☕ Coffee:** {"⭐" * review['coffee_rating']}  
+                    **🛎️ Service:** {"⭐" * review['service_rating']}  
+                    **💰 Value:** {"⭐" * review['value_rating']}
+                    """)
+                
+                with col2:
+                    st.markdown(f"""
+                    **🏛️ Atmosphere:** {"⭐" * review['atmosphere_rating']}  
+                    **🧽 Cleanliness:** {"⭐" * review['cleanliness_rating']}  
+                    **💻 WiFi:** {"✅" if review['wifi'] else "❌"}
+                    """)
+                
+                with col3:
+                    st.markdown(f"""
+                    **🔄 Return:** {review['would_return']}  
+                    **👍 Recommend:** {review['would_recommend']}  
+                    **💵 Price:** ${review['price_coffee']:.2f}
+                    """)
+                
+                if review['highlights']:
+                    st.markdown(f"**✨ Highlights:** {review['highlights']}")
+                
+                if review['improvements']:
+                    st.markdown(f"**📈 Improvements:** {review['improvements']}")
+                
+                st.markdown("---")
+        else:
+            st.info("🏪 No coffee shop reviews yet. Visit your first coffee shop and share your experience!")
+    
+    with tab3:
+        st.subheader("📊 Coffee Shop Analysis")
+        
+        if 'coffee_shops' in st.session_state and st.session_state.coffee_shops:
+            reviews = st.session_state.coffee_shops
+            
+            # Overview metrics
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Total Visits", len(reviews))
+            with col2:
+                avg_overall = sum(r['overall_rating'] for r in reviews) / len(reviews)
+                st.metric("Avg Overall Rating", f"{avg_overall:.1f}⭐")
+            with col3:
+                unique_cities = len(set(r['city'] for r in reviews))
+                st.metric("Cities Visited", unique_cities)
+            with col4:
+                total_spent = sum(r['price_coffee'] for r in reviews)
+                st.metric("Total Coffee Spent", f"${total_spent:.2f}")
+            
+            st.markdown("---")
+            
+            # Top rated shops
+            st.markdown("### 🏆 Top Rated Coffee Shops")
+            top_shops = sorted(reviews, key=lambda x: x['overall_rating'], reverse=True)[:5]
+            
+            for shop in top_shops:
+                st.markdown(f"""
+                **{shop['shop_name']}** - {"⭐" * shop['overall_rating']}  
+                📍 {shop['city']} | ☕ {shop['coffee_ordered']} | 💰 ${shop['price_coffee']:.2f}  
+                *{shop['highlights'][:100]}{"..." if len(shop['highlights']) > 100 else ""}*
+                """)
+                st.markdown("---")
+            
+            # City analysis
+            st.markdown("### 🌆 Performance by City")
+            city_stats = {}
+            for review in reviews:
+                city = review['city']
+                if city not in city_stats:
+                    city_stats[city] = {'count': 0, 'ratings': [], 'cost': 0}
+                city_stats[city]['count'] += 1
+                city_stats[city]['ratings'].append(review['overall_rating'])
+                city_stats[city]['cost'] += review['price_coffee']
+            
+            city_data = []
+            for city, stats in city_stats.items():
+                avg_rating = sum(stats['ratings']) / len(stats['ratings'])
+                avg_cost = stats['cost'] / stats['count']
+                city_data.append({
+                    'City': city,
+                    'Visits': stats['count'],
+                    'Avg Rating': f"{avg_rating:.1f}⭐",
+                    'Avg Cost': f"${avg_cost:.2f}",
+                    'Total Spent': f"${stats['cost']:.2f}"
+                })
+            
+            city_data.sort(key=lambda x: float(x['Avg Rating'].replace('⭐', '')), reverse=True)
+            st.table(city_data)
+            
+        else:
+            st.info("📊 No coffee shop data yet. Visit coffee shops to see analysis.")
 
 def show_coffee_reviews():
     st.title("📝 Coffee Bag Evaluation")
