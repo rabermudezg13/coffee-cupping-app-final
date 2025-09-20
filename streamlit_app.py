@@ -107,11 +107,13 @@ def show_main_app():
     # Sidebar navigation
     with st.sidebar:
         st.markdown("### ☕ Navigation")
-        page = st.radio("", ["📊 Dashboard", "📝 Coffee Reviews", "👤 Profile"])
+        page = st.radio("", ["📊 Dashboard", "☕ Cupping Sessions", "📝 Coffee Reviews", "👤 Profile"])
     
     # Main content
     if page == "📊 Dashboard":
         show_dashboard()
+    elif page == "☕ Cupping Sessions":
+        show_cupping_sessions()
     elif page == "📝 Coffee Reviews":
         show_coffee_reviews()
     elif page == "👤 Profile":
@@ -270,6 +272,229 @@ def show_profile():
         if reviews_count > 0:
             avg_rating = sum(r['rating'] for r in st.session_state.coffee_reviews) / reviews_count
             st.metric("Average Rating", f"{avg_rating:.1f}⭐")
+
+def show_cupping_sessions():
+    st.title("☕ Professional Cupping Sessions")
+    
+    tab1, tab2, tab3, tab4 = st.tabs(["🆕 New Session", "📋 My Sessions", "📊 Analysis", "🎨 Flavor Wheel"])
+    
+    with tab1:
+        show_new_cupping_session()
+    
+    with tab2:
+        show_my_cupping_sessions()
+    
+    with tab3:
+        show_cupping_analysis()
+    
+    with tab4:
+        show_flavor_wheel()
+
+def show_new_cupping_session():
+    st.subheader("🆕 Create New Cupping Session")
+    
+    with st.form("new_cupping_session"):
+        # Session details
+        st.markdown("### 📋 Session Information")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            session_name = st.text_input("Session Name *")
+            cupping_date = st.date_input("Cupping Date", value=date.today())
+            num_samples = st.number_input("Number of Samples", 1, 8, 3)
+            cups_per_sample = st.number_input("Cups per Sample", 3, 5, 5)
+        
+        with col2:
+            cupper_name = st.text_input("Lead Cupper", value=st.session_state.get('user_data', {}).get('name', ''))
+            evaluation_type = st.selectbox("Protocol", ["SCA Standard", "COE Protocol", "Custom"])
+            is_blind = st.checkbox("Blind Cupping", value=True)
+            water_temp = st.number_input("Water Temperature (°C)", 90, 96, 93)
+        
+        # Sample information
+        st.markdown("### 🌱 Sample Information")
+        samples = []
+        
+        for i in range(num_samples):
+            st.markdown(f"**Sample {i+1}:**")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                sample_name = st.text_input(f"Sample Name", key=f"sample_name_{i}")
+                origin = st.text_input(f"Origin", key=f"origin_{i}")
+            
+            with col2:
+                variety = st.text_input(f"Variety", key=f"variety_{i}")
+                process = st.selectbox(f"Process", ["Washed", "Natural", "Honey", "Pulped Natural"], key=f"process_{i}")
+            
+            with col3:
+                altitude = st.text_input(f"Altitude (masl)", key=f"altitude_{i}")
+                harvest_year = st.text_input(f"Harvest Year", key=f"harvest_{i}")
+            
+            samples.append({
+                'name': sample_name,
+                'origin': origin,
+                'variety': variety,
+                'process': process,
+                'altitude': altitude,
+                'harvest_year': harvest_year
+            })
+            
+            if i < num_samples - 1:
+                st.markdown("---")
+        
+        submit = st.form_submit_button("🚀 Create Cupping Session", use_container_width=True)
+        
+        if submit:
+            if not session_name:
+                st.error("❌ Session name is required")
+            else:
+                # Store session
+                if 'cupping_sessions' not in st.session_state:
+                    st.session_state.cupping_sessions = []
+                
+                session = {
+                    'name': session_name,
+                    'date': cupping_date.strftime('%Y-%m-%d'),
+                    'cupper': cupper_name,
+                    'protocol': evaluation_type,
+                    'blind': is_blind,
+                    'water_temp': water_temp,
+                    'samples': samples,
+                    'cups_per_sample': cups_per_sample,
+                    'created': datetime.now().strftime('%Y-%m-%d %H:%M'),
+                    'status': 'Created'
+                }
+                
+                st.session_state.cupping_sessions.append(session)
+                st.success(f"✅ Created cupping session: '{session_name}' with {num_samples} samples")
+                st.balloons()
+
+def show_my_cupping_sessions():
+    st.subheader("📋 My Cupping Sessions")
+    
+    if 'cupping_sessions' in st.session_state and st.session_state.cupping_sessions:
+        for session in st.session_state.cupping_sessions:
+            st.markdown(f'''
+            <div class="coffee-card">
+                <h4>☕ {session["name"]}</h4>
+                <p><strong>📅 Date:</strong> {session["date"]} | <strong>👨‍🔬 Cupper:</strong> {session["cupper"]}</p>
+                <p><strong>🔬 Protocol:</strong> {session["protocol"]} | <strong>🌡️ Water:</strong> {session["water_temp"]}°C</p>
+                <p><strong>🌱 Samples:</strong> {len(session["samples"])} | <strong>☕ Cups/Sample:</strong> {session["cups_per_sample"]}</p>
+                <p><strong>👁️ Blind:</strong> {"Yes" if session["blind"] else "No"} | <strong>📊 Status:</strong> {session["status"]}</p>
+                <p style="font-size: 0.9rem; color: #666;"><strong>📅 Created:</strong> {session["created"]}</p>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+            # Sample details
+            with st.expander(f"📋 View samples - {session['name']}"):
+                for i, sample in enumerate(session['samples']):
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.write(f"**Sample {i+1}:** {sample['name']}")
+                        st.write(f"**Origin:** {sample['origin']}")
+                    with col2:
+                        st.write(f"**Variety:** {sample['variety']}")
+                        st.write(f"**Process:** {sample['process']}")
+                    with col3:
+                        st.write(f"**Altitude:** {sample['altitude']}")
+                        st.write(f"**Harvest:** {sample['harvest_year']}")
+                    if i < len(session['samples']) - 1:
+                        st.markdown("---")
+    else:
+        st.info("📝 No cupping sessions yet. Create your first professional cupping session!")
+
+def show_cupping_analysis():
+    st.subheader("📊 Cupping Analysis")
+    
+    if 'cupping_sessions' in st.session_state and st.session_state.cupping_sessions:
+        sessions_count = len(st.session_state.cupping_sessions)
+        total_samples = sum(len(s['samples']) for s in st.session_state.cupping_sessions)
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Sessions", sessions_count)
+        with col2:
+            st.metric("Total Samples", total_samples)
+        with col3:
+            st.metric("Avg Samples/Session", f"{total_samples/sessions_count:.1f}" if sessions_count > 0 else "0")
+        
+        st.markdown("---")
+        st.markdown("### 📈 Session Overview")
+        
+        for session in st.session_state.cupping_sessions:
+            st.markdown(f"**{session['name']}** - {session['date']} - {len(session['samples'])} samples")
+    else:
+        st.info("📊 No cupping data yet. Create sessions to see analysis.")
+
+def show_flavor_wheel():
+    st.subheader("🎨 SCA Flavor Wheel")
+    
+    st.success("✅ SCA Flavor Wheel - Professional Implementation")
+    
+    # SCA Flavor categories
+    flavor_categories = {
+        "🍊 Fruity": {
+            "Citrus": ["Grapefruit", "Orange", "Lemon", "Lime"],
+            "Berry": ["Blackberry", "Raspberry", "Blueberry", "Strawberry"],
+            "Stone Fruit": ["Peach", "Apricot", "Plum", "Cherry"],
+            "Tropical": ["Pineapple", "Mango", "Papaya", "Coconut"]
+        },
+        "🌸 Floral": {
+            "Floral": ["Rose", "Jasmine", "Lavender", "Chamomile"],
+            "Tea-like": ["Black Tea", "Earl Grey"]
+        },
+        "🍯 Sweet": {
+            "Brown Sugar": ["Molasses", "Maple Syrup", "Caramel", "Honey"],
+            "Vanilla": ["Vanilla"],
+            "Chocolate": ["Dark Chocolate", "Milk Chocolate"]
+        },
+        "🥜 Nutty": {
+            "Tree Nuts": ["Almond", "Hazelnut", "Walnut", "Pecan"],
+            "Legumes": ["Peanut"]
+        },
+        "🌿 Green/Vegetative": {
+            "Fresh": ["Green", "Underripe"],
+            "Dried": ["Hay", "Herb-like"]
+        },
+        "🔥 Roasted": {
+            "Grain": ["Bread", "Malt", "Rice"],
+            "Burnt": ["Smoky", "Ashy", "Acrid"]
+        }
+    }
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("### 🎯 Select Flavor Descriptors")
+        selected_flavors = []
+        
+        for category, subcategories in flavor_categories.items():
+            with st.expander(category):
+                for subcat, flavors in subcategories.items():
+                    st.markdown(f"**{subcat}:**")
+                    cols = st.columns(min(len(flavors), 3))
+                    for i, flavor in enumerate(flavors):
+                        with cols[i % len(cols)]:
+                            if st.checkbox(flavor, key=f"flavor_{category}_{subcat}_{flavor}"):
+                                selected_flavors.append(flavor)
+    
+    with col2:
+        st.markdown("### 📋 Selected Flavors")
+        if selected_flavors:
+            for flavor in selected_flavors:
+                st.markdown(f"🏷️ **{flavor}**")
+            st.markdown(f"**Total:** {len(selected_flavors)}")
+        else:
+            st.info("Select flavors from the wheel")
+        
+        st.markdown("---")
+        st.markdown("### 📖 SCA Guidelines")
+        st.markdown("""
+        - **Primary:** Most prominent notes
+        - **Secondary:** Supporting flavors  
+        - **Finish:** Aftertaste descriptors
+        - **Limit:** 8-10 descriptors max
+        """)
 
 if __name__ == "__main__":
     main()
