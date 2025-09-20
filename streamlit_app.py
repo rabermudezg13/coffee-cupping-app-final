@@ -555,19 +555,7 @@ def show_my_cupping_sessions():
                 total_avg = sum(score['total'] for score in session['scores']) / len(session['scores'])
                 avg_score = f"<span style='font-size: 1.5rem; color: {status_color}; font-weight: bold;'>⭐ {total_avg:.1f}</span>"
             
-            # Enhanced session card - get translations first
-            protocol_text = get_text("protocol")
-            water_temp_text = get_text("water_temperature")
-            samples_text = get_text("samples")
-            sample_count = len(session["samples"])
-            sample_word = get_text("sample" if sample_count == 1 else "samples")
-            cups_per_sample_text = get_text("cups_per_sample")
-            cups_count = session["cups_per_sample"]
-            cup_word = get_text("cup" if cups_count == 1 else "cups")
-            blind_cupping_text = get_text("blind_cupping")
-            yes_no_text = get_text("yes") if session["blind"] else get_text("no")
-            created_text = get_text("created")
-            
+            # Enhanced session card
             st.markdown(f'''
             <div style="background: linear-gradient(145deg, #ffffff, #f8f9fa); border: 2px solid #8B4513; border-radius: 15px; padding: 1.5rem; margin: 1rem 0; box-shadow: 0 6px 20px rgba(0,0,0,0.1);">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
@@ -587,27 +575,27 @@ def show_my_cupping_sessions():
                 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; background: #f8f9fa; padding: 1rem; border-radius: 10px;">
                     <div>
-                        <strong style="color: #8B4513;">🔬 {protocol_text}:</strong><br>
+                        <strong style="color: #8B4513;">🔬 {get_text("protocol")}:</strong><br>
                         <span style="color: #333;">{session["protocol"]}</span>
                     </div>
                     <div>
-                        <strong style="color: #8B4513;">🌡️ {water_temp_text}:</strong><br>
+                        <strong style="color: #8B4513;">🌡️ {get_text("water_temperature")}:</strong><br>
                         <span style="color: #333;">{session["water_temp"]}°C</span>
                     </div>
                     <div>
-                        <strong style="color: #8B4513;">🌱 {samples_text}:</strong><br>
-                        <span style="color: #333;">{sample_count} {sample_word}</span>
+                        <strong style="color: #8B4513;">🌱 {get_text("samples")}:</strong><br>
+                        <span style="color: #333;">{len(session["samples"])} {get_text("sample" if len(session["samples"]) == 1 else "samples")}</span>
                     </div>
                     <div>
-                        <strong style="color: #8B4513;">☕ {cups_per_sample_text}:</strong><br>
-                        <span style="color: #333;">{cups_count} {cup_word}</span>
+                        <strong style="color: #8B4513;">☕ {get_text("cups_per_sample")}:</strong><br>
+                        <span style="color: #333;">{session["cups_per_sample"]} {get_text("cup" if session["cups_per_sample"] == 1 else "cups")}</span>
                     </div>
                     <div>
-                        <strong style="color: #8B4513;">👁️ {blind_cupping_text}:</strong><br>
-                        <span style="color: #333;">{yes_no_text}</span>
+                        <strong style="color: #8B4513;">👁️ {get_text("blind_cupping")}:</strong><br>
+                        <span style="color: #333;">{get_text("yes") if session["blind"] else get_text("no")}</span>
                     </div>
                     <div>
-                        <strong style="color: #8B4513;">📅 {created_text}:</strong><br>
+                        <strong style="color: #8B4513;">📅 {get_text("created")}:</strong><br>
                         <span style="color: #666; font-size: 0.9rem;">{session["created"]}</span>
                     </div>
                 </div>
