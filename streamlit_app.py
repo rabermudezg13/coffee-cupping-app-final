@@ -435,7 +435,7 @@ def show_profile():
 def show_cupping_sessions():
     st.title("☕ Professional Cupping Sessions")
     
-    tab1, tab2, tab3, tab4 = st.tabs(["🆕 New Session", "📋 My Sessions", "📊 Analysis", "🎨 Flavor Wheel"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🆕 New Session", "📋 My Sessions", "📊 Analysis", "🎨 Flavor Wheel", "☕ Coffee Bags"])
     
     with tab1:
         show_new_cupping_session()
@@ -448,6 +448,9 @@ def show_cupping_sessions():
     
     with tab4:
         show_flavor_wheel()
+    
+    with tab5:
+        show_coffee_bags_analysis()
 
 def show_new_cupping_session():
     st.subheader("🆕 Create New Cupping Session")
@@ -662,27 +665,203 @@ def show_my_cupping_sessions():
         st.info("📝 No cupping sessions yet. Create your first professional cupping session!")
 
 def show_cupping_analysis():
-    st.subheader("📊 Cupping Analysis")
+    st.subheader("📊 Professional Cupping Analysis")
     
     if 'cupping_sessions' in st.session_state and st.session_state.cupping_sessions:
         sessions_count = len(st.session_state.cupping_sessions)
         total_samples = sum(len(s['samples']) for s in st.session_state.cupping_sessions)
+        scored_sessions = [s for s in st.session_state.cupping_sessions if s.get('status') == 'Scored']
         
-        col1, col2, col3 = st.columns(3)
+        # Overview metrics
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("Total Sessions", sessions_count)
         with col2:
             st.metric("Total Samples", total_samples)
         with col3:
-            st.metric("Avg Samples/Session", f"{total_samples/sessions_count:.1f}" if sessions_count > 0 else "0")
+            st.metric("Scored Sessions", len(scored_sessions))
+        with col4:
+            completion_rate = (len(scored_sessions) / sessions_count * 100) if sessions_count > 0 else 0
+            st.metric("Completion Rate", f"{completion_rate:.0f}%")
         
         st.markdown("---")
-        st.markdown("### 📈 Session Overview")
+        
+        # Score analysis for completed sessions
+        if scored_sessions:
+            st.markdown("### 🏆 Score Analysis")
+            
+            all_scores = []
+            origin_scores = {}
+            
+            for session in scored_sessions:
+                if 'scores' in session:
+                    for score in session['scores']:
+                        all_scores.append(score['total'])
+                        
+                        # Find sample origin from session samples
+                        sample_name = score['sample_name']
+                        for sample in session['samples']:
+                            if sample['name'] == sample_name:
+                                origin = sample.get('origin', 'Unknown')
+                                if origin not in origin_scores:
+                                    origin_scores[origin] = []
+                                origin_scores[origin].append(score['total'])
+                                break
+            
+            if all_scores:
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Average Score", f"{sum(all_scores)/len(all_scores):.1f}")
+                with col2:
+                    st.metric("Highest Score", f"{max(all_scores):.1f}")
+                with col3:
+                    st.metric("Lowest Score", f"{min(all_scores):.1f}")
+                
+                # Score distribution
+                st.markdown("### 📈 Score Distribution")
+                excellent = len([s for s in all_scores if s >= 85])
+                very_good = len([s for s in all_scores if 80 <= s < 85])
+                good = len([s for s in all_scores if 75 <= s < 80])
+                fair = len([s for s in all_scores if s < 75])
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("🏆 Excellent (85+)", excellent)
+                with col2:
+                    st.metric("⭐ Very Good (80-84)", very_good)
+                with col3:
+                    st.metric("👍 Good (75-79)", good)
+                with col4:
+                    st.metric("⚠️ Fair (<75)", fair)
+                
+                # Origin analysis
+                if origin_scores:
+                    st.markdown("### 🌍 Performance by Origin")
+                    origin_data = []
+                    for origin, scores in origin_scores.items():
+                        if scores:
+                            avg_score = sum(scores) / len(scores)
+                            origin_data.append({
+                                'Origin': origin,
+                                'Samples': len(scores),
+                                'Avg Score': f"{avg_score:.1f}",
+                                'Best Score': f"{max(scores):.1f}"
+                            })
+                    
+                    if origin_data:
+                        # Sort by average score
+                        origin_data.sort(key=lambda x: float(x['Avg Score']), reverse=True)
+                        st.table(origin_data)
+        
+        st.markdown("---")
+        st.markdown("### 📋 Session Overview")
         
         for session in st.session_state.cupping_sessions:
-            st.markdown(f"**{session['name']}** - {session['date']} - {len(session['samples'])} samples")
+            status_icon = "✅" if session['status'] == 'Scored' else "⏳"
+            score_info = ""
+            if session['status'] == 'Scored' and 'scores' in session:
+                avg = sum(score['total'] for score in session['scores']) / len(session['scores'])
+                score_info = f" - Avg: {avg:.1f}"
+            
+            st.markdown(f"{status_icon} **{session['name']}** - {session['date']} - {len(session['samples'])} samples{score_info}")
     else:
         st.info("📊 No cupping data yet. Create sessions to see analysis.")
+
+def show_coffee_bags_analysis():
+    st.subheader("☕ Coffee Bag Analysis")
+    
+    if 'coffee_reviews' in st.session_state and st.session_state.coffee_reviews:
+        reviews = st.session_state.coffee_reviews
+        
+        # Overview metrics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Reviews", len(reviews))
+        with col2:
+            avg_rating = sum(r['rating'] for r in reviews) / len(reviews)
+            st.metric("Average Rating", f"{avg_rating:.1f}⭐")
+        with col3:
+            origins = len(set(r['origin'] for r in reviews))
+            st.metric("Origins Tried", origins)
+        with col4:
+            total_cost = sum(r['cost'] for r in reviews)
+            st.metric("Total Investment", f"${total_cost:.2f}")
+        
+        st.markdown("---")
+        
+        # Rating distribution
+        st.markdown("### ⭐ Rating Distribution")
+        rating_counts = {i: 0 for i in range(1, 6)}
+        for review in reviews:
+            rating_counts[review['rating']] += 1
+        
+        col1, col2, col3, col4, col5 = st.columns(5)
+        cols = [col1, col2, col3, col4, col5]
+        for i, (rating, count) in enumerate(rating_counts.items()):
+            with cols[i]:
+                st.metric(f"{rating}⭐", count)
+        
+        # Origin analysis
+        st.markdown("### 🌍 Performance by Origin")
+        origin_stats = {}
+        for review in reviews:
+            origin = review['origin']
+            if origin not in origin_stats:
+                origin_stats[origin] = {'count': 0, 'ratings': [], 'cost': 0}
+            origin_stats[origin]['count'] += 1
+            origin_stats[origin]['ratings'].append(review['rating'])
+            origin_stats[origin]['cost'] += review['cost']
+        
+        origin_data = []
+        for origin, stats in origin_stats.items():
+            avg_rating = sum(stats['ratings']) / len(stats['ratings'])
+            avg_cost = stats['cost'] / stats['count']
+            origin_data.append({
+                'Origin': origin,
+                'Reviews': stats['count'],
+                'Avg Rating': f"{avg_rating:.1f}⭐",
+                'Avg Cost': f"${avg_cost:.2f}",
+                'Total Spent': f"${stats['cost']:.2f}"
+            })
+        
+        # Sort by average rating
+        origin_data.sort(key=lambda x: float(x['Avg Rating'].replace('⭐', '')), reverse=True)
+        st.table(origin_data)
+        
+        # Preparation method analysis
+        st.markdown("### ☕ Preparation Method Analysis")
+        prep_stats = {}
+        for review in reviews:
+            prep = review['preparation']
+            if prep not in prep_stats:
+                prep_stats[prep] = {'count': 0, 'ratings': []}
+            prep_stats[prep]['count'] += 1
+            prep_stats[prep]['ratings'].append(review['rating'])
+        
+        prep_data = []
+        for prep, stats in prep_stats.items():
+            avg_rating = sum(stats['ratings']) / len(stats['ratings'])
+            prep_data.append({
+                'Method': prep,
+                'Reviews': stats['count'],
+                'Avg Rating': f"{avg_rating:.1f}⭐"
+            })
+        
+        prep_data.sort(key=lambda x: float(x['Avg Rating'].replace('⭐', '')), reverse=True)
+        st.table(prep_data)
+        
+        # Top performers
+        st.markdown("### 🏆 Top Rated Coffees")
+        top_coffees = sorted(reviews, key=lambda x: x['rating'], reverse=True)[:5]
+        
+        for coffee in top_coffees:
+            st.markdown(f"""
+            **{coffee['name']}** - {"⭐" * coffee['rating']}  
+            🌍 {coffee['origin']} | 💰 ${coffee['cost']:.2f} | ☕ {coffee['preparation']}  
+            *"{coffee['flavor_notes']}"*
+            """)
+    else:
+        st.info("☕ No coffee bag reviews yet. Create reviews in the Coffee Reviews section to see analysis.")
 
 def show_flavor_wheel():
     st.subheader("🎨 SCA Flavor Wheel")
