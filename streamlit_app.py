@@ -1455,7 +1455,9 @@ def show_my_cupping_sessions():
                         st.session_state.scoring_session = i
                         st.rerun()
                 else:
-                    st.success(f"✅ {get_text('completed')}")
+                    if st.button("📝 Edit Scores", key=f"edit_scores_{i}", use_container_width=True):
+                        st.session_state.editing_scores_session = i
+                        st.rerun()
             
             with col2:
                 if st.button(f"📋 {get_text('view_samples')}", key=f"view_{i}", use_container_width=True):
@@ -1536,6 +1538,10 @@ def show_my_cupping_sessions():
         # Show edit interface
         if 'editing_session' in st.session_state:
             show_edit_interface(st.session_state.editing_session)
+        
+        # Show edit scores interface
+        if 'editing_scores_session' in st.session_state:
+            show_edit_scores_interface(st.session_state.editing_scores_session)
         
         # Show results
         if 'results_session' in st.session_state:
@@ -2190,6 +2196,232 @@ def show_edit_interface(session_index):
             st.metric("Participants", len(session['participants']))
         else:
             st.metric("Participants", 0)
+
+def show_edit_scores_interface(session_index):
+    st.markdown("---")
+    st.subheader("📝 Edit Cupping Scores")
+    
+    session = st.session_state.cupping_sessions[session_index]
+    st.markdown(f"### ☕ Editing Scores: {session['name']}")
+    
+    st.info("💡 **Tip:** You can modify all scores and flavor notes. Changes will be saved automatically.")
+    
+    # Initialize if not exists
+    if f'editing_scores_data_{session_index}' not in st.session_state:
+        # Load existing scores into editing state
+        existing_scores = session.get('scores', [])
+        st.session_state[f'editing_scores_data_{session_index}'] = existing_scores.copy()
+    
+    sample_scores = []
+    
+    for i, sample in enumerate(session['samples']):
+        st.markdown(f"#### Sample {i+1}: {sample['name']} ({sample['origin']})")
+        
+        # Get existing score data for this sample
+        existing_score = next((score for score in session.get('scores', []) if score['sample_name'] == sample['name']), None)
+        
+        col1, col2, col3 = st.columns([1, 1, 1])
+        
+        with col1:
+            st.markdown("**🎯 Professional Categories**")
+            # Load existing values or defaults
+            fragrance = st.slider(f"Fragrance/Aroma", 6.0, 10.0, 
+                                existing_score['fragrance'] if existing_score else 8.0, 
+                                0.25, key=f"edit_fragrance_{session_index}_{i}")
+            flavor = st.slider(f"Flavor", 6.0, 10.0, 
+                             existing_score['flavor'] if existing_score else 8.0, 
+                             0.25, key=f"edit_flavor_{session_index}_{i}")
+            aftertaste = st.slider(f"Aftertaste", 6.0, 10.0, 
+                                 existing_score['aftertaste'] if existing_score else 8.0, 
+                                 0.25, key=f"edit_aftertaste_{session_index}_{i}")
+            acidity = st.slider(f"Acidity", 6.0, 10.0, 
+                              existing_score['acidity'] if existing_score else 8.0, 
+                              0.25, key=f"edit_acidity_{session_index}_{i}")
+            body = st.slider(f"Body", 6.0, 10.0, 
+                           existing_score['body'] if existing_score else 8.0, 
+                           0.25, key=f"edit_body_{session_index}_{i}")
+        
+        with col2:
+            st.markdown("**⚖️ Quality Factors**")
+            balance = st.slider(f"Balance", 6.0, 10.0, 
+                              existing_score['balance'] if existing_score else 8.0, 
+                              0.25, key=f"edit_balance_{session_index}_{i}")
+            uniformity = st.slider(f"Uniformity", 0, 10, 
+                                 existing_score['uniformity'] if existing_score else 10, 
+                                 2, key=f"edit_uniformity_{session_index}_{i}")
+            clean_cup = st.slider(f"Clean Cup", 0, 10, 
+                                existing_score['clean_cup'] if existing_score else 10, 
+                                2, key=f"edit_clean_{session_index}_{i}")
+            sweetness = st.slider(f"Sweetness", 0, 10, 
+                                existing_score['sweetness'] if existing_score else 10, 
+                                2, key=f"edit_sweetness_{session_index}_{i}")
+            overall = st.slider(f"Overall", 6.0, 10.0, 
+                              existing_score['overall'] if existing_score else 8.0, 
+                              0.25, key=f"edit_overall_{session_index}_{i}")
+            
+            # Defects
+            defects = st.number_input(f"Defects (subtract)", 0, 10, 
+                                    existing_score['defects'] if existing_score else 0, 
+                                    key=f"edit_defects_{session_index}_{i}")
+        
+        with col3:
+            st.markdown("**📊 Live Score**")
+            # Calculate total DYNAMICALLY
+            total = fragrance + flavor + aftertaste + acidity + body + balance + uniformity + clean_cup + sweetness + overall - defects
+            
+            # Show score with color coding
+            if total >= 90:
+                score_color = "#28a745"  # Green
+                grade = "🏆 Outstanding"
+            elif total >= 85:
+                score_color = "#17a2b8"  # Blue
+                grade = "⭐ Excellent"
+            elif total >= 80:
+                score_color = "#ffc107"  # Yellow
+                grade = "👍 Very Good"
+            elif total >= 75:
+                score_color = "#fd7e14"  # Orange
+                grade = "👌 Good"
+            else:
+                score_color = "#dc3545"  # Red
+                grade = "⚠️ Fair"
+            
+            st.markdown(f'''
+            <div style="background: {score_color}; color: white; padding: 1rem; border-radius: 10px; text-align: center; margin: 1rem 0;">
+                <h2 style="margin: 0; font-size: 2rem;">{total:.2f}</h2>
+                <p style="margin: 0; font-weight: bold;">{grade}</p>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+            st.metric("vs Specialty (80)", f"{total-80:+.2f}", f"{((total-80)/80*100):+.1f}%")
+        
+        # Flavor Notes Section
+        st.markdown("### 🎨 Flavor Profile")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            # Quick flavor buttons from professional wheel
+            st.markdown("**Quick Flavor Selection:**")
+            
+            # Flavor categories in compact form
+            flavor_buttons = {
+                "🍊 Fruity": ["Citrus", "Berry", "Stone Fruit", "Tropical"],
+                "🌸 Floral": ["Rose", "Jasmine", "Tea-like"],
+                "🍯 Sweet": ["Caramel", "Honey", "Chocolate", "Vanilla"],
+                "🥜 Nutty": ["Almond", "Hazelnut", "Walnut"],
+                "🌿 Green": ["Fresh", "Herb-like"],
+                "🔥 Roasted": ["Bread", "Smoky", "Cereal"]
+            }
+            
+            selected_flavors = []
+            existing_flavors = existing_score.get('selected_flavors', []) if existing_score else []
+            
+            for category, flavors in flavor_buttons.items():
+                st.markdown(f"**{category}:**")
+                cols = st.columns(len(flavors))
+                for j, flavor in enumerate(flavors):
+                    with cols[j]:
+                        # Check if this flavor was previously selected
+                        default_value = flavor in existing_flavors
+                        if st.checkbox(flavor, value=default_value, key=f"edit_flavor_{session_index}_{i}_{category}_{flavor}"):
+                            selected_flavors.append(flavor)
+            
+            # Manual notes
+            existing_notes = existing_score.get('notes', '') if existing_score else ''
+            manual_notes = st.text_area(f"Additional Tasting Notes", value=existing_notes,
+                                      key=f"edit_notes_{session_index}_{i}", height=80,
+                                      placeholder="e.g., bright, clean finish, wine-like...")
+        
+        with col2:
+            st.markdown("**Selected Flavors:**")
+            if selected_flavors:
+                for flavor in selected_flavors:
+                    st.markdown(f"🏷️ {flavor}")
+                flavor_text = ", ".join(selected_flavors)
+            else:
+                flavor_text = ""
+                st.info("Select flavors from categories")
+            
+            # Combine flavor notes
+            combined_notes = f"{flavor_text}. {manual_notes}".strip('. ')
+        
+        sample_scores.append({
+            'sample_name': sample['name'],
+            'fragrance': fragrance,
+            'flavor': flavor,
+            'aftertaste': aftertaste,
+            'acidity': acidity,
+            'body': body,
+            'balance': balance,
+            'uniformity': uniformity,
+            'clean_cup': clean_cup,
+            'sweetness': sweetness,
+            'overall': overall,
+            'defects': defects,
+            'total': total,
+            'notes': combined_notes,
+            'selected_flavors': selected_flavors
+        })
+        
+        if i < len(session['samples']) - 1:
+            st.markdown("---")
+    
+    # Session notes
+    st.markdown("### 📝 Session Notes")
+    existing_session_notes = session.get('session_notes', '')
+    session_notes = st.text_area("Overall session comments", value=existing_session_notes, 
+                                key=f"edit_session_notes_{session_index}")
+    
+    # Save/Cancel buttons
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("💾 Update Scores", use_container_width=True, key=f"update_scores_{session_index}"):
+            # Update scores in session
+            st.session_state.cupping_sessions[session_index]['scores'] = sample_scores
+            st.session_state.cupping_sessions[session_index]['session_notes'] = session_notes
+            st.session_state.cupping_sessions[session_index]['status'] = 'Scored'
+            st.session_state.cupping_sessions[session_index]['last_score_update'] = datetime.now().strftime('%Y-%m-%d %H:%M')
+            
+            # Save data
+            save_data()
+            
+            st.success("✅ Scores updated successfully!")
+            del st.session_state.editing_scores_session
+            # Clean up editing data
+            if f'editing_scores_data_{session_index}' in st.session_state:
+                del st.session_state[f'editing_scores_data_{session_index}']
+            st.rerun()
+    
+    with col2:
+        if st.button("❌ Cancel Changes", use_container_width=True, key=f"cancel_edit_scores_{session_index}"):
+            del st.session_state.editing_scores_session
+            # Clean up editing data
+            if f'editing_scores_data_{session_index}' in st.session_state:
+                del st.session_state[f'editing_scores_data_{session_index}']
+            st.rerun()
+    
+    # Show comparison with original scores
+    if session.get('scores'):
+        st.markdown("---")
+        st.markdown("#### 📊 Score Comparison")
+        
+        with st.expander("📈 Compare with Original Scores", expanded=False):
+            comparison_data = []
+            original_scores = session['scores']
+            
+            for i, (original, new) in enumerate(zip(original_scores, sample_scores)):
+                comparison_data.append({
+                    'Sample': original['sample_name'],
+                    'Original Total': f"{original['total']:.2f}",
+                    'New Total': f"{new['total']:.2f}",
+                    'Difference': f"{new['total'] - original['total']:+.2f}",
+                    'Original Flavor': f"{original['flavor']:.2f}",
+                    'New Flavor': f"{new['flavor']:.2f}"
+                })
+            
+            if comparison_data:
+                st.table(comparison_data)
 
 def show_session_results(session_index):
     st.markdown("---")
