@@ -123,7 +123,18 @@ def get_text(key):
             'view_results': 'View Results',
             'delete': 'Delete',
             'completed': 'Completed',
-            'welcome': 'Welcome'
+            'welcome': 'Welcome',
+            'protocol': 'Protocol',
+            'water_temperature': 'Water Temperature',
+            'samples': 'Samples',
+            'sample': 'Sample',
+            'cups_per_sample': 'Cups per Sample',
+            'cup': 'Cup',
+            'cups': 'Cups',
+            'blind_cupping': 'Blind Cupping',
+            'yes': 'Yes',
+            'no': 'No',
+            'created': 'Created'
         },
         'es': {
             'app_title': 'App Profesional de Cata de Café',
@@ -146,7 +157,18 @@ def get_text(key):
             'view_results': 'Ver Resultados',
             'delete': 'Eliminar',
             'completed': 'Completado',
-            'welcome': 'Bienvenido'
+            'welcome': 'Bienvenido',
+            'protocol': 'Protocolo',
+            'water_temperature': 'Temperatura del Agua',
+            'samples': 'Muestras',
+            'sample': 'Muestra',
+            'cups_per_sample': 'Tazas por Muestra',
+            'cup': 'Taza',
+            'cups': 'Tazas',
+            'blind_cupping': 'Cata Ciega',
+            'yes': 'Sí',
+            'no': 'No',
+            'created': 'Creado'
         }
     }
     return translations.get(get_language(), {}).get(key, key)
@@ -533,7 +555,19 @@ def show_my_cupping_sessions():
                 total_avg = sum(score['total'] for score in session['scores']) / len(session['scores'])
                 avg_score = f"<span style='font-size: 1.5rem; color: {status_color}; font-weight: bold;'>⭐ {total_avg:.1f}</span>"
             
-            # Enhanced session card
+            # Enhanced session card - get translations first
+            protocol_text = get_text("protocol")
+            water_temp_text = get_text("water_temperature")
+            samples_text = get_text("samples")
+            sample_count = len(session["samples"])
+            sample_word = get_text("sample" if sample_count == 1 else "samples")
+            cups_per_sample_text = get_text("cups_per_sample")
+            cups_count = session["cups_per_sample"]
+            cup_word = get_text("cup" if cups_count == 1 else "cups")
+            blind_cupping_text = get_text("blind_cupping")
+            yes_no_text = get_text("yes") if session["blind"] else get_text("no")
+            created_text = get_text("created")
+            
             st.markdown(f'''
             <div style="background: linear-gradient(145deg, #ffffff, #f8f9fa); border: 2px solid #8B4513; border-radius: 15px; padding: 1.5rem; margin: 1rem 0; box-shadow: 0 6px 20px rgba(0,0,0,0.1);">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
@@ -553,27 +587,27 @@ def show_my_cupping_sessions():
                 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; background: #f8f9fa; padding: 1rem; border-radius: 10px;">
                     <div>
-                        <strong style="color: #8B4513;">🔬 Protocol:</strong><br>
+                        <strong style="color: #8B4513;">🔬 {protocol_text}:</strong><br>
                         <span style="color: #333;">{session["protocol"]}</span>
                     </div>
                     <div>
-                        <strong style="color: #8B4513;">🌡️ Water Temperature:</strong><br>
+                        <strong style="color: #8B4513;">🌡️ {water_temp_text}:</strong><br>
                         <span style="color: #333;">{session["water_temp"]}°C</span>
                     </div>
                     <div>
-                        <strong style="color: #8B4513;">🌱 Samples:</strong><br>
-                        <span style="color: #333;">{len(session["samples"])} samples</span>
+                        <strong style="color: #8B4513;">🌱 {samples_text}:</strong><br>
+                        <span style="color: #333;">{sample_count} {sample_word}</span>
                     </div>
                     <div>
-                        <strong style="color: #8B4513;">☕ Cups per Sample:</strong><br>
-                        <span style="color: #333;">{session["cups_per_sample"]} cups</span>
+                        <strong style="color: #8B4513;">☕ {cups_per_sample_text}:</strong><br>
+                        <span style="color: #333;">{cups_count} {cup_word}</span>
                     </div>
                     <div>
-                        <strong style="color: #8B4513;">👁️ Blind Cupping:</strong><br>
-                        <span style="color: #333;">{"Yes" if session["blind"] else "No"}</span>
+                        <strong style="color: #8B4513;">👁️ {blind_cupping_text}:</strong><br>
+                        <span style="color: #333;">{yes_no_text}</span>
                     </div>
                     <div>
-                        <strong style="color: #8B4513;">📅 Created:</strong><br>
+                        <strong style="color: #8B4513;">📅 {created_text}:</strong><br>
                         <span style="color: #666; font-size: 0.9rem;">{session["created"]}</span>
                     </div>
                 </div>
