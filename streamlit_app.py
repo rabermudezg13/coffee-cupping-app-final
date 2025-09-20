@@ -58,31 +58,16 @@ def show_login():
     with col2:
         st.markdown('<div class="coffee-card">', unsafe_allow_html=True)
         
-        tab1, tab2 = st.tabs(["🔐 Login", "📝 Coffee Reviews"])
+        tab1, tab2, tab3 = st.tabs(["🔐 Login", "🆕 Register", "👥 Guest"])
         
         with tab1:
-            st.markdown("### 🔐 Login")
-            st.info("**Demo Credentials:**\n\nEmail: demo@coffee.com\nPassword: demo123")
-            
-            email = st.text_input("Email Address")
-            password = st.text_input("Password", type="password")
-            
-            if st.button("🚀 Login", use_container_width=True):
-                if email == "demo@coffee.com" and password == "demo123":
-                    st.session_state.logged_in = True
-                    st.session_state.user_data = {
-                        'name': 'Demo User',
-                        'email': email,
-                        'company': 'Coffee Cultura LLC'
-                    }
-                    st.success("✅ Login successful!")
-                    st.rerun()
-                else:
-                    st.error("❌ Invalid credentials. Use demo credentials above.")
+            show_login_form()
         
         with tab2:
-            st.markdown("### 📝 Coffee Bag Evaluation")
-            st.info("Login to access the coffee evaluation features!")
+            show_register_form()
+        
+        with tab3:
+            show_guest_mode()
         
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -373,7 +358,7 @@ def show_my_cupping_sessions():
     st.subheader("📋 My Cupping Sessions")
     
     if 'cupping_sessions' in st.session_state and st.session_state.cupping_sessions:
-        for session in st.session_state.cupping_sessions:
+        for i, session in enumerate(st.session_state.cupping_sessions):
             st.markdown(f'''
             <div class="coffee-card">
                 <h4>☕ {session["name"]}</h4>
@@ -385,8 +370,28 @@ def show_my_cupping_sessions():
             </div>
             ''', unsafe_allow_html=True)
             
-            # Sample details
-            with st.expander(f"📋 View samples - {session['name']}"):
+            # Action buttons
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if st.button(f"📊 Score Session", key=f"score_{i}"):
+                    st.session_state.scoring_session = i
+                    st.rerun()
+            with col2:
+                if st.button(f"📋 View Samples", key=f"view_{i}"):
+                    st.session_state.viewing_session = i
+            with col3:
+                if session["status"] == "Scored":
+                    if st.button(f"📈 View Results", key=f"results_{i}"):
+                        st.session_state.results_session = i
+        
+        # Show scoring interface
+        if 'scoring_session' in st.session_state:
+            show_scoring_interface(st.session_state.scoring_session)
+        
+        # Show sample details
+        if 'viewing_session' in st.session_state:
+            session = st.session_state.cupping_sessions[st.session_state.viewing_session]
+            with st.expander(f"📋 Sample Details - {session['name']}", expanded=True):
                 for i, sample in enumerate(session['samples']):
                     col1, col2, col3 = st.columns(3)
                     with col1:
@@ -400,6 +405,14 @@ def show_my_cupping_sessions():
                         st.write(f"**Harvest:** {sample['harvest_year']}")
                     if i < len(session['samples']) - 1:
                         st.markdown("---")
+                if st.button("Close Details"):
+                    del st.session_state.viewing_session
+                    st.rerun()
+        
+        # Show results
+        if 'results_session' in st.session_state:
+            show_session_results(st.session_state.results_session)
+            
     else:
         st.info("📝 No cupping sessions yet. Create your first professional cupping session!")
 
@@ -495,6 +508,299 @@ def show_flavor_wheel():
         - **Finish:** Aftertaste descriptors
         - **Limit:** 8-10 descriptors max
         """)
+
+def show_scoring_interface(session_index):
+    st.markdown("---")
+    st.subheader("📊 SCA Cupping Score")
+    
+    session = st.session_state.cupping_sessions[session_index]
+    
+    with st.form(f"scoring_form_{session_index}"):
+        st.markdown(f"### ☕ Scoring: {session['name']}")
+        
+        sample_scores = []
+        
+        for i, sample in enumerate(session['samples']):
+            st.markdown(f"#### Sample {i+1}: {sample['name']} ({sample['origin']})")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # SCA Categories (6-10 scale)
+                fragrance = st.slider(f"Fragrance/Aroma", 6.0, 10.0, 8.0, 0.25, key=f"fragrance_{session_index}_{i}")
+                flavor = st.slider(f"Flavor", 6.0, 10.0, 8.0, 0.25, key=f"flavor_{session_index}_{i}")
+                aftertaste = st.slider(f"Aftertaste", 6.0, 10.0, 8.0, 0.25, key=f"aftertaste_{session_index}_{i}")
+                acidity = st.slider(f"Acidity", 6.0, 10.0, 8.0, 0.25, key=f"acidity_{session_index}_{i}")
+                body = st.slider(f"Body", 6.0, 10.0, 8.0, 0.25, key=f"body_{session_index}_{i}")
+            
+            with col2:
+                balance = st.slider(f"Balance", 6.0, 10.0, 8.0, 0.25, key=f"balance_{session_index}_{i}")
+                uniformity = st.slider(f"Uniformity", 0, 10, 10, 2, key=f"uniformity_{session_index}_{i}")
+                clean_cup = st.slider(f"Clean Cup", 0, 10, 10, 2, key=f"clean_{session_index}_{i}")
+                sweetness = st.slider(f"Sweetness", 0, 10, 10, 2, key=f"sweetness_{session_index}_{i}")
+                overall = st.slider(f"Overall", 6.0, 10.0, 8.0, 0.25, key=f"overall_{session_index}_{i}")
+            
+            # Defects
+            defects = st.number_input(f"Defects (subtract)", 0, 10, 0, key=f"defects_{session_index}_{i}")
+            
+            # Calculate total
+            total = fragrance + flavor + aftertaste + acidity + body + balance + uniformity + clean_cup + sweetness + overall - defects
+            
+            st.metric(f"Sample {i+1} Total Score", f"{total:.2f}", f"{total-80:.2f}")
+            
+            # Tasting notes
+            notes = st.text_area(f"Tasting Notes", key=f"notes_{session_index}_{i}", height=80)
+            
+            sample_scores.append({
+                'sample_name': sample['name'],
+                'fragrance': fragrance,
+                'flavor': flavor,
+                'aftertaste': aftertaste,
+                'acidity': acidity,
+                'body': body,
+                'balance': balance,
+                'uniformity': uniformity,
+                'clean_cup': clean_cup,
+                'sweetness': sweetness,
+                'overall': overall,
+                'defects': defects,
+                'total': total,
+                'notes': notes
+            })
+            
+            if i < len(session['samples']) - 1:
+                st.markdown("---")
+        
+        # Session notes
+        st.markdown("### 📝 Session Notes")
+        session_notes = st.text_area("Overall session comments", key=f"session_notes_{session_index}")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.form_submit_button("💾 Save Scores", use_container_width=True):
+                # Save scores to session
+                st.session_state.cupping_sessions[session_index]['scores'] = sample_scores
+                st.session_state.cupping_sessions[session_index]['session_notes'] = session_notes
+                st.session_state.cupping_sessions[session_index]['status'] = 'Scored'
+                st.session_state.cupping_sessions[session_index]['scored_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
+                
+                st.success("✅ Scores saved successfully!")
+                del st.session_state.scoring_session
+                st.rerun()
+        
+        with col2:
+            if st.form_submit_button("❌ Cancel", use_container_width=True):
+                del st.session_state.scoring_session
+                st.rerun()
+
+def show_session_results(session_index):
+    st.markdown("---")
+    st.subheader("📈 Session Results")
+    
+    session = st.session_state.cupping_sessions[session_index]
+    
+    if 'scores' in session:
+        st.markdown(f"### ☕ {session['name']} - Results")
+        st.markdown(f"**📅 Scored:** {session.get('scored_date', 'Unknown')}")
+        
+        # Summary table
+        scores_data = []
+        for score in session['scores']:
+            scores_data.append({
+                'Sample': score['sample_name'],
+                'Total': f"{score['total']:.2f}",
+                'Fragrance': score['fragrance'],
+                'Flavor': score['flavor'],
+                'Aftertaste': score['aftertaste'],
+                'Acidity': score['acidity'],
+                'Body': score['body'],
+                'Balance': score['balance'],
+                'Overall': score['overall']
+            })
+        
+        st.table(scores_data)
+        
+        # Best sample
+        best_sample = max(session['scores'], key=lambda x: x['total'])
+        st.success(f"🏆 Highest Score: {best_sample['sample_name']} - {best_sample['total']:.2f} points")
+        
+        # Individual sample details
+        st.markdown("### 📋 Detailed Scores")
+        for score in session['scores']:
+            with st.expander(f"{score['sample_name']} - {score['total']:.2f} points"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"**Fragrance/Aroma:** {score['fragrance']}")
+                    st.write(f"**Flavor:** {score['flavor']}")
+                    st.write(f"**Aftertaste:** {score['aftertaste']}")
+                    st.write(f"**Acidity:** {score['acidity']}")
+                    st.write(f"**Body:** {score['body']}")
+                with col2:
+                    st.write(f"**Balance:** {score['balance']}")
+                    st.write(f"**Uniformity:** {score['uniformity']}")
+                    st.write(f"**Clean Cup:** {score['clean_cup']}")
+                    st.write(f"**Sweetness:** {score['sweetness']}")
+                    st.write(f"**Overall:** {score['overall']}")
+                
+                if score['defects'] > 0:
+                    st.write(f"**Defects:** -{score['defects']}")
+                
+                if score['notes']:
+                    st.markdown("**Tasting Notes:**")
+                    st.write(score['notes'])
+        
+        # Session notes
+        if session.get('session_notes'):
+            st.markdown("### 📝 Session Notes")
+            st.write(session['session_notes'])
+        
+        if st.button("Close Results"):
+            del st.session_state.results_session
+            st.rerun()
+    else:
+        st.error("No scores found for this session")
+
+def show_login_form():
+    st.markdown("### 🔐 Login to Your Account")
+    st.info("**Demo Credentials:**\n\nEmail: demo@coffee.com\nPassword: demo123")
+    
+    email = st.text_input("Email Address", key="login_email")
+    password = st.text_input("Password", type="password", key="login_password")
+    remember = st.checkbox("🔒 Remember me")
+    
+    if st.button("🚀 Login", use_container_width=True):
+        # Check demo credentials
+        if email == "demo@coffee.com" and password == "demo123":
+            st.session_state.logged_in = True
+            st.session_state.user_data = {
+                'name': 'Demo User',
+                'email': email,
+                'company': 'Coffee Cultura LLC',
+                'role': 'Q Grader',
+                'user_type': 'demo'
+            }
+            st.success("✅ Demo login successful!")
+            st.rerun()
+        
+        # Check registered users
+        elif 'registered_users' in st.session_state and email in st.session_state.registered_users:
+            stored_user = st.session_state.registered_users[email]
+            if stored_user['password'] == password:
+                st.session_state.logged_in = True
+                st.session_state.user_data = {
+                    'name': stored_user['name'],
+                    'email': email,
+                    'company': stored_user['company'],
+                    'role': stored_user['role'],
+                    'user_type': 'registered'
+                }
+                st.success("✅ Login successful!")
+                st.rerun()
+            else:
+                st.error("❌ Invalid password")
+        else:
+            st.error("❌ User not found. Please register or use demo credentials.")
+
+def show_register_form():
+    st.markdown("### 🆕 Create New Account")
+    
+    with st.form("registration_form"):
+        st.markdown("#### 👤 Personal Information")
+        full_name = st.text_input("Full Name *")
+        email = st.text_input("Email Address *")
+        
+        st.markdown("#### 🔐 Security")
+        password = st.text_input("Password *", type="password", help="Minimum 6 characters")
+        confirm_password = st.text_input("Confirm Password *", type="password")
+        
+        st.markdown("#### ☕ Professional Information")
+        company = st.text_input("Company/Organization")
+        role = st.selectbox("Your Role", [
+            "Coffee Enthusiast", "Home Barista", "Professional Barista",
+            "Q Grader", "Coffee Roaster", "Café Owner", "Coffee Trader",
+            "Coffee Producer", "Coffee Consultant", "Other"
+        ])
+        
+        experience = st.selectbox("Cupping Experience", [
+            "Beginner", "Intermediate", "Advanced", "Expert"
+        ])
+        
+        terms = st.checkbox("✅ I agree to the Terms of Service *")
+        
+        if st.form_submit_button("🚀 Create Account", use_container_width=True):
+            errors = []
+            
+            if not full_name.strip():
+                errors.append("❌ Full name is required")
+            if not email.strip():
+                errors.append("❌ Email is required")
+            elif "@" not in email:
+                errors.append("❌ Valid email required")
+            if not password:
+                errors.append("❌ Password is required")
+            elif len(password) < 6:
+                errors.append("❌ Password must be 6+ characters")
+            if password != confirm_password:
+                errors.append("❌ Passwords don't match")
+            if not terms:
+                errors.append("❌ Must accept terms")
+            
+            # Check if email exists
+            if ('registered_users' in st.session_state and 
+                email in st.session_state.registered_users):
+                errors.append("❌ Email already registered")
+            if email == "demo@coffee.com":
+                errors.append("❌ Email reserved for demo")
+            
+            if errors:
+                for error in errors:
+                    st.error(error)
+            else:
+                # Create user
+                if 'registered_users' not in st.session_state:
+                    st.session_state.registered_users = {}
+                
+                new_user = {
+                    'name': full_name.strip(),
+                    'password': password,
+                    'company': company.strip() or "Independent",
+                    'role': role,
+                    'experience': experience,
+                    'created': datetime.now().strftime('%Y-%m-%d %H:%M')
+                }
+                
+                st.session_state.registered_users[email] = new_user
+                
+                st.success("✅ Account created successfully!")
+                st.success("🎉 Welcome to the Coffee Cupping Community!")
+                st.info("You can now login with your credentials in the Login tab.")
+
+def show_guest_mode():
+    st.markdown("### 👥 Guest Mode")
+    
+    st.info("""
+    **Guest Mode Features:**
+    - ✅ Full app functionality
+    - ✅ Create cupping sessions
+    - ✅ Score sessions with SCA protocol
+    - ✅ Coffee bag evaluations
+    - ✅ Flavor wheel access
+    - ⚠️ Data not saved permanently
+    """)
+    
+    guest_name = st.text_input("Your Name (Optional)", placeholder="Coffee Lover")
+    
+    if st.button("🚀 Enter as Guest", use_container_width=True):
+        st.session_state.logged_in = True
+        st.session_state.user_data = {
+            'name': guest_name or 'Guest User',
+            'email': 'guest@demo.com',
+            'company': 'Guest Session',
+            'role': 'Coffee Enthusiast',
+            'user_type': 'guest'
+        }
+        st.success("✅ Welcome, Guest!")
+        st.rerun()
 
 if __name__ == "__main__":
     main()
