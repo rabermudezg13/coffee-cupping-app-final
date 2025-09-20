@@ -1448,7 +1448,7 @@ def show_my_cupping_sessions():
             st.markdown("---")
             
             # Action buttons with better styling
-            col1, col2, col3, col4, col5, col6 = st.columns(6)
+            col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
             with col1:
                 if session["status"] != "Scored":
                     if st.button(f"📊 {get_text('score_session')}", key=f"score_{i}", use_container_width=True):
@@ -1490,6 +1490,11 @@ def show_my_cupping_sessions():
                     st.session_state.inviting_session = i
             
             with col6:
+                # Edit session button
+                if st.button("✏️ Edit", key=f"edit_{i}", use_container_width=True):
+                    st.session_state.editing_session = i
+            
+            with col7:
                 if st.button(f"🗑️ {get_text('delete')}", key=f"delete_{i}", use_container_width=True):
                     if st.session_state.get(f'confirm_delete_{i}', False):
                         del st.session_state.cupping_sessions[i]
@@ -1527,6 +1532,10 @@ def show_my_cupping_sessions():
         # Show invite interface
         if 'inviting_session' in st.session_state:
             show_invite_interface(st.session_state.inviting_session)
+        
+        # Show edit interface
+        if 'editing_session' in st.session_state:
+            show_edit_interface(st.session_state.editing_session)
         
         # Show results
         if 'results_session' in st.session_state:
@@ -2033,6 +2042,154 @@ def show_invite_interface(session_index):
         if st.button("❌ Close", use_container_width=True):
             del st.session_state.inviting_session
             st.rerun()
+
+def show_edit_interface(session_index):
+    st.markdown("---")
+    st.subheader("✏️ Edit Cupping Session")
+    
+    session = st.session_state.cupping_sessions[session_index]
+    st.markdown(f"### Editing: {session['name']}")
+    
+    if session.get('status') == 'Scored':
+        st.warning("⚠️ **Note:** This session has been scored. Editing will preserve existing scores but you can modify session details.")
+    
+    with st.form(f"edit_session_{session_index}"):
+        # Session details
+        st.markdown("### 📋 Session Information")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            session_name = st.text_input("Session Name *", value=session['name'])
+            cupping_date = st.date_input("Cupping Date", value=datetime.strptime(session['date'], '%Y-%m-%d').date())
+            
+            # Get current number of samples and cups
+            current_samples = len(session['samples'])
+            current_cups = session['cups_per_sample']
+            
+            num_samples = st.number_input("Number of Samples", 1, 8, current_samples)
+            cups_per_sample = st.number_input("Cups per Sample", 3, 5, current_cups)
+        
+        with col2:
+            cupper_name = st.text_input("Lead Cupper", value=session['cupper'])
+            evaluation_type = st.selectbox("Protocol", ["SCA Standard", "COE Protocol", "Custom"], 
+                                         index=["SCA Standard", "COE Protocol", "Custom"].index(session['protocol']) if session['protocol'] in ["SCA Standard", "COE Protocol", "Custom"] else 0)
+            is_blind = st.checkbox("Blind Cupping", value=session['blind'])
+            water_temp = st.number_input("Water Temperature (°C)", 90, 96, session['water_temp'])
+        
+        # Sample information
+        st.markdown("### 🌱 Sample Information")
+        samples = []
+        
+        for i in range(num_samples):
+            st.markdown(f"**Sample {i+1}:**")
+            col1, col2, col3 = st.columns(3)
+            
+            # Get existing sample data if available
+            existing_sample = session['samples'][i] if i < len(session['samples']) else {
+                'name': '', 'origin': '', 'variety': '', 'process': 'Washed', 'altitude': '', 'harvest_year': ''
+            }
+            
+            with col1:
+                sample_name = st.text_input(f"Sample Name", value=existing_sample['name'], key=f"edit_sample_name_{i}")
+                origin = st.text_input(f"Origin", value=existing_sample['origin'], key=f"edit_origin_{i}")
+            
+            with col2:
+                variety = st.text_input(f"Variety", value=existing_sample['variety'], key=f"edit_variety_{i}")
+                process_options = ["Washed", "Natural", "Honey", "Pulped Natural"]
+                process_index = process_options.index(existing_sample['process']) if existing_sample['process'] in process_options else 0
+                process = st.selectbox(f"Process", process_options, index=process_index, key=f"edit_process_{i}")
+            
+            with col3:
+                altitude = st.text_input(f"Altitude (masl)", value=existing_sample['altitude'], key=f"edit_altitude_{i}")
+                harvest_year = st.text_input(f"Harvest Year", value=existing_sample['harvest_year'], key=f"edit_harvest_{i}")
+            
+            samples.append({
+                'name': sample_name,
+                'origin': origin,
+                'variety': variety,
+                'process': process,
+                'altitude': altitude,
+                'harvest_year': harvest_year
+            })
+            
+            if i < num_samples - 1:
+                st.markdown("---")
+        
+        # Show warning if reducing samples
+        if num_samples < len(session['samples']):
+            st.warning(f"⚠️ **Warning:** You are reducing samples from {len(session['samples'])} to {num_samples}. This will remove the last {len(session['samples']) - num_samples} sample(s) and any associated scores.")
+        
+        # Form buttons
+        col1, col2 = st.columns(2)
+        with col1:
+            save_changes = st.form_submit_button("💾 Save Changes", use_container_width=True)
+        with col2:
+            cancel_edit = st.form_submit_button("❌ Cancel", use_container_width=True)
+        
+        if save_changes:
+            if not session_name:
+                st.error("❌ Session name is required")
+            else:
+                # Update session data
+                updated_session = {
+                    'name': session_name,
+                    'date': cupping_date.strftime('%Y-%m-%d'),
+                    'cupper': cupper_name,
+                    'protocol': evaluation_type,
+                    'blind': is_blind,
+                    'water_temp': water_temp,
+                    'samples': samples,
+                    'cups_per_sample': cups_per_sample,
+                    'created': session['created'],  # Keep original creation date
+                    'status': session['status'],  # Keep current status
+                    'last_modified': datetime.now().strftime('%Y-%m-%d %H:%M')
+                }
+                
+                # Preserve existing scores if session was scored and samples weren't reduced
+                if session.get('status') == 'Scored' and 'scores' in session:
+                    if num_samples <= len(session['samples']):
+                        # Keep existing scores, but only for remaining samples
+                        existing_scores = session['scores'][:num_samples]
+                        updated_session['scores'] = existing_scores
+                        updated_session['session_notes'] = session.get('session_notes', '')
+                        updated_session['scored_date'] = session.get('scored_date', '')
+                    else:
+                        # If adding samples, session needs to be re-scored
+                        updated_session['status'] = 'Created'
+                        st.warning("⚠️ **Note:** New samples added. Session status changed to 'Created' and needs to be re-scored.")
+                
+                # Preserve participants if they exist
+                if 'participants' in session:
+                    updated_session['participants'] = session['participants']
+                
+                # Update session in state
+                st.session_state.cupping_sessions[session_index] = updated_session
+                save_data()
+                
+                st.success("✅ Session updated successfully!")
+                st.balloons()
+                
+                # Close edit interface
+                del st.session_state.editing_session
+                st.rerun()
+        
+        if cancel_edit:
+            del st.session_state.editing_session
+            st.rerun()
+    
+    # Show current session summary
+    st.markdown("---")
+    st.markdown("#### 📋 Current Session Summary")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Original Samples", len(session['samples']))
+    with col2:
+        st.metric("Current Status", session['status'])
+    with col3:
+        if 'participants' in session:
+            st.metric("Participants", len(session['participants']))
+        else:
+            st.metric("Participants", 0)
 
 def show_session_results(session_index):
     st.markdown("---")
