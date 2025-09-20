@@ -2,6 +2,12 @@ import streamlit as st
 from datetime import datetime, date
 import json
 import os
+from io import BytesIO
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.units import inch
 
 # Page configuration
 st.set_page_config(
@@ -131,6 +137,239 @@ def get_language():
     if 'language' not in st.session_state:
         st.session_state.language = 'en'
     return st.session_state.language
+
+def generate_cupping_pdf(session):
+    """Generate PDF report for cupping session"""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
+    
+    # Title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=30,
+        textColor=colors.HexColor('#8B4513'),
+        alignment=1  # Center
+    )
+    
+    story.append(Paragraph(f"☕ Coffee Cupping Report", title_style))
+    story.append(Paragraph(f"Session: {session['name']}", styles['Heading2']))
+    story.append(Spacer(1, 12))
+    
+    # Session Info
+    session_data = [
+        ['Date:', session['date']],
+        ['Lead Cupper:', session['cupper']],
+        ['Protocol:', session['protocol']],
+        ['Water Temperature:', f"{session['water_temp']}°C"],
+        ['Samples:', str(len(session['samples']))],
+        ['Cups per Sample:', str(session['cups_per_sample'])],
+        ['Blind Cupping:', 'Yes' if session['blind'] else 'No'],
+        ['Status:', session['status']]
+    ]
+    
+    session_table = Table(session_data, colWidths=[2*inch, 3*inch])
+    session_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F5F5DC')),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#D2B48C')),
+    ]))
+    
+    story.append(session_table)
+    story.append(Spacer(1, 20))
+    
+    # Samples Information
+    story.append(Paragraph("Sample Information", styles['Heading2']))
+    story.append(Spacer(1, 12))
+    
+    for i, sample in enumerate(session['samples']):
+        sample_data = [
+            [f"Sample {i+1}", sample['name']],
+            ['Origin:', sample['origin']],
+            ['Variety:', sample['variety']],
+            ['Process:', sample['process']],
+            ['Altitude:', sample['altitude']],
+            ['Harvest Year:', sample['harvest_year']]
+        ]
+        
+        sample_table = Table(sample_data, colWidths=[1.5*inch, 3.5*inch])
+        sample_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F0F8FF')),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        
+        story.append(sample_table)
+        story.append(Spacer(1, 10))
+    
+    # Scores (if available)
+    if session.get('status') == 'Scored' and 'scores' in session:
+        story.append(Paragraph("Cupping Scores", styles['Heading2']))
+        story.append(Spacer(1, 12))
+        
+        # Scores table header
+        score_data = [['Sample', 'Fragrance', 'Flavor', 'Aftertaste', 'Acidity', 'Body', 'Balance', 'Overall', 'Total']]
+        
+        for score in session['scores']:
+            score_data.append([
+                score['sample_name'],
+                str(score['fragrance']),
+                str(score['flavor']),
+                str(score['aftertaste']),
+                str(score['acidity']),
+                str(score['body']),
+                str(score['balance']),
+                str(score['overall']),
+                f"{score['total']:.2f}"
+            ])
+        
+        scores_table = Table(score_data, colWidths=[1.2*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.8*inch])
+        scores_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B4513')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F5F5DC')),
+        ]))
+        
+        story.append(scores_table)
+        story.append(Spacer(1, 20))
+        
+        # Flavor notes
+        story.append(Paragraph("Tasting Notes", styles['Heading2']))
+        story.append(Spacer(1, 12))
+        
+        for score in session['scores']:
+            if score.get('notes'):
+                story.append(Paragraph(f"<b>{score['sample_name']}:</b> {score['notes']}", styles['Normal']))
+                story.append(Spacer(1, 8))
+        
+        # Session notes
+        if session.get('session_notes'):
+            story.append(Spacer(1, 12))
+            story.append(Paragraph("Session Notes", styles['Heading3']))
+            story.append(Paragraph(session['session_notes'], styles['Normal']))
+    
+    # Footer
+    story.append(Spacer(1, 30))
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=8,
+        textColor=colors.grey,
+        alignment=1
+    )
+    story.append(Paragraph("Generated by Coffee Cupping App - Professional | © 2025 Rodrigo Bermudez - Cafe Cultura LLC", footer_style))
+    
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
+def generate_participant_invite_pdf(session, participant_email):
+    """Generate invitation PDF for cupping participants"""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
+    
+    # Title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=20,
+        spaceAfter=30,
+        textColor=colors.HexColor('#8B4513'),
+        alignment=1
+    )
+    
+    story.append(Paragraph("☕ Coffee Cupping Invitation", title_style))
+    story.append(Spacer(1, 20))
+    
+    # Invitation text
+    invite_text = f"""
+    <para align=center>
+    <b>You are cordially invited to participate in a professional coffee cupping session!</b>
+    </para>
+    """
+    story.append(Paragraph(invite_text, styles['Normal']))
+    story.append(Spacer(1, 20))
+    
+    # Session details
+    session_info = [
+        ['Session Name:', session['name']],
+        ['Date:', session['date']],
+        ['Lead Cupper:', session['cupper']],
+        ['Protocol:', session['protocol']],
+        ['Number of Samples:', str(len(session['samples']))],
+        ['Cups per Sample:', str(session['cups_per_sample'])],
+        ['Blind Cupping:', 'Yes' if session['blind'] else 'No']
+    ]
+    
+    info_table = Table(session_info, colWidths=[2*inch, 3*inch])
+    info_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#D2B48C')),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    
+    story.append(info_table)
+    story.append(Spacer(1, 30))
+    
+    # Instructions
+    instructions = """
+    <b>What to Expect:</b><br/>
+    • Professional SCA cupping protocol<br/>
+    • Evaluation of multiple coffee samples<br/>
+    • Flavor profiling and scoring<br/>
+    • Collaborative tasting experience<br/><br/>
+    
+    <b>Please bring:</b><br/>
+    • A clean palate<br/>
+    • Water for rinsing<br/>
+    • Note-taking materials<br/>
+    • An open mind for discovery!<br/><br/>
+    
+    We look forward to your participation in this exciting coffee evaluation session.
+    """
+    
+    story.append(Paragraph(instructions, styles['Normal']))
+    story.append(Spacer(1, 30))
+    
+    # Contact info
+    contact_style = ParagraphStyle(
+        'Contact',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor('#8B4513'),
+        alignment=1
+    )
+    
+    story.append(Paragraph(f"For questions, contact: {session['cupper']}", contact_style))
+    story.append(Spacer(1, 10))
+    story.append(Paragraph("Generated by Coffee Cupping App - Professional", contact_style))
+    
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
 
 def get_text(key):
     translations = {
@@ -936,7 +1175,7 @@ def show_my_cupping_sessions():
             st.markdown("---")
             
             # Action buttons with better styling
-            col1, col2, col3, col4 = st.columns(4)
+            col1, col2, col3, col4, col5, col6 = st.columns(6)
             with col1:
                 if session["status"] != "Scored":
                     if st.button(f"📊 {get_text('score_session')}", key=f"score_{i}", use_container_width=True):
@@ -957,6 +1196,27 @@ def show_my_cupping_sessions():
                     st.button(f"📈 {get_text('view_results')}", disabled=True, use_container_width=True)
             
             with col4:
+                # PDF Export button
+                try:
+                    pdf_buffer = generate_cupping_pdf(session)
+                    st.download_button(
+                        label="📄 Export PDF",
+                        data=pdf_buffer,
+                        file_name=f"cupping_session_{session['name'].replace(' ', '_')}.pdf",
+                        mime="application/pdf",
+                        key=f"pdf_{i}",
+                        use_container_width=True
+                    )
+                except Exception as e:
+                    if st.button("📄 Export PDF", key=f"pdf_error_{i}", use_container_width=True):
+                        st.error(f"PDF generation error: {e}")
+            
+            with col5:
+                # Invite participants button
+                if st.button("👥 Invite", key=f"invite_{i}", use_container_width=True):
+                    st.session_state.inviting_session = i
+            
+            with col6:
                 if st.button(f"🗑️ {get_text('delete')}", key=f"delete_{i}", use_container_width=True):
                     if st.session_state.get(f'confirm_delete_{i}', False):
                         del st.session_state.cupping_sessions[i]
@@ -990,6 +1250,10 @@ def show_my_cupping_sessions():
                 if st.button("Close Details"):
                     del st.session_state.viewing_session
                     st.rerun()
+        
+        # Show invite interface
+        if 'inviting_session' in st.session_state:
+            show_invite_interface(st.session_state.inviting_session)
         
         # Show results
         if 'results_session' in st.session_state:
@@ -1424,6 +1688,146 @@ def show_scoring_interface(session_index):
     with col2:
         if st.button("❌ Cancel", use_container_width=True, key=f"cancel_{session_index}"):
             del st.session_state.scoring_session
+            st.rerun()
+
+def show_invite_interface(session_index):
+    st.markdown("---")
+    st.subheader("👥 Invite Cupping Participants")
+    
+    session = st.session_state.cupping_sessions[session_index]
+    st.markdown(f"### ☕ Inviting to: {session['name']}")
+    
+    # Initialize participants list if not exists
+    if 'participants' not in session:
+        st.session_state.cupping_sessions[session_index]['participants'] = []
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("#### 📧 Add Participants")
+        with st.form(f"invite_form_{session_index}"):
+            participant_email = st.text_input("Participant Email", placeholder="cupper@coffee.com")
+            participant_name = st.text_input("Participant Name", placeholder="Coffee Expert")
+            participant_role = st.selectbox("Role", [
+                "Q Grader", "Coffee Roaster", "Barista", "Coffee Buyer", 
+                "Quality Control", "Coffee Farmer", "Coffee Enthusiast", "Other"
+            ])
+            
+            col_a, col_b = st.columns(2)
+            with col_a:
+                add_participant = st.form_submit_button("➕ Add Participant", use_container_width=True)
+            with col_b:
+                send_invite = st.form_submit_button("📧 Generate Invite PDF", use_container_width=True)
+            
+            if add_participant:
+                if participant_email and participant_name:
+                    new_participant = {
+                        'email': participant_email,
+                        'name': participant_name,
+                        'role': participant_role,
+                        'invited_date': datetime.now().strftime('%Y-%m-%d %H:%M'),
+                        'status': 'Invited'
+                    }
+                    
+                    # Check if already invited
+                    existing_emails = [p['email'] for p in session['participants']]
+                    if participant_email not in existing_emails:
+                        st.session_state.cupping_sessions[session_index]['participants'].append(new_participant)
+                        save_data()
+                        st.success(f"✅ Added {participant_name} to participant list!")
+                        st.rerun()
+                    else:
+                        st.error("❌ This participant is already invited!")
+                else:
+                    st.error("❌ Please fill in both email and name")
+            
+            if send_invite and participant_email:
+                try:
+                    invite_pdf = generate_participant_invite_pdf(session, participant_email)
+                    st.download_button(
+                        label=f"📄 Download Invitation for {participant_email}",
+                        data=invite_pdf,
+                        file_name=f"cupping_invitation_{session['name'].replace(' ', '_')}_{participant_email.split('@')[0]}.pdf",
+                        mime="application/pdf",
+                        key=f"invite_pdf_{session_index}_{participant_email}"
+                    )
+                except Exception as e:
+                    st.error(f"Error generating invitation: {e}")
+    
+    with col2:
+        st.markdown("#### 👥 Current Participants")
+        if session.get('participants'):
+            for i, participant in enumerate(session['participants']):
+                with st.expander(f"👤 {participant['name']}", expanded=False):
+                    st.write(f"**Email:** {participant['email']}")
+                    st.write(f"**Role:** {participant['role']}")
+                    st.write(f"**Invited:** {participant['invited_date']}")
+                    st.write(f"**Status:** {participant['status']}")
+                    
+                    col_x, col_y = st.columns(2)
+                    with col_x:
+                        if st.button(f"📧 Resend", key=f"resend_{session_index}_{i}"):
+                            try:
+                                invite_pdf = generate_participant_invite_pdf(session, participant['email'])
+                                st.download_button(
+                                    label="📄 Download Invitation",
+                                    data=invite_pdf,
+                                    file_name=f"cupping_invitation_{session['name'].replace(' ', '_')}_{participant['email'].split('@')[0]}.pdf",
+                                    mime="application/pdf",
+                                    key=f"resend_pdf_{session_index}_{i}"
+                                )
+                            except Exception as e:
+                                st.error(f"Error: {e}")
+                    
+                    with col_y:
+                        if st.button(f"🗑️ Remove", key=f"remove_participant_{session_index}_{i}"):
+                            st.session_state.cupping_sessions[session_index]['participants'].pop(i)
+                            save_data()
+                            st.success("Participant removed")
+                            st.rerun()
+        else:
+            st.info("No participants invited yet")
+    
+    # Session summary with participants
+    st.markdown("#### 📋 Session Overview")
+    participant_count = len(session.get('participants', []))
+    total_participants = participant_count + 1  # +1 for lead cupper
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Participants", total_participants)
+    with col2:
+        st.metric("Invited Participants", participant_count)
+    with col3:
+        cups_needed = len(session['samples']) * session['cups_per_sample'] * total_participants
+        st.metric("Total Cups Needed", cups_needed)
+    
+    # Quick actions
+    st.markdown("#### ⚡ Quick Actions")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("📧 Generate All Invites", use_container_width=True):
+            if session.get('participants'):
+                st.info("Click 'Generate Invite PDF' for each participant above to download individual invitations.")
+            else:
+                st.warning("No participants to invite yet!")
+    
+    with col2:
+        if st.button("📊 Export Participant List", use_container_width=True):
+            if session.get('participants'):
+                participant_data = []
+                for p in session['participants']:
+                    participant_data.append(f"{p['name']} ({p['email']}) - {p['role']}")
+                
+                participant_list = "\\n".join(participant_data)
+                st.text_area("Participant List (copy this):", participant_list, height=100)
+            else:
+                st.warning("No participants to export!")
+    
+    with col3:
+        if st.button("❌ Close", use_container_width=True):
+            del st.session_state.inviting_session
             st.rerun()
 
 def show_session_results(session_index):
