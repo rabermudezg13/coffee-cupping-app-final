@@ -1,5 +1,7 @@
 import streamlit as st
 from datetime import datetime, date
+import json
+import os
 
 # Page configuration
 st.set_page_config(
@@ -29,12 +31,123 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Database functions for persistence
+DATA_FILE = "coffee_app_data.json"
+
+def load_data():
+    """Load data from JSON file"""
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data
+        except Exception as e:
+            st.error(f"Error loading data: {e}")
+    return {"users": {}, "sessions": {}, "reviews": {}}
+
+def save_data():
+    """Save data to JSON file"""
+    try:
+        data = {
+            "users": st.session_state.get('registered_users', {}),
+            "sessions": st.session_state.get('cupping_sessions', []),
+            "reviews": st.session_state.get('coffee_reviews', [])
+        }
+        with open(DATA_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        st.error(f"Error saving data: {e}")
+        return False
+
+def init_data():
+    """Initialize data from file on app start"""
+    if 'data_loaded' not in st.session_state:
+        data = load_data()
+        st.session_state.registered_users = data.get("users", {})
+        st.session_state.cupping_sessions = data.get("sessions", [])
+        st.session_state.coffee_reviews = data.get("reviews", [])
+        st.session_state.data_loaded = True
+
+def get_language():
+    if 'language' not in st.session_state:
+        st.session_state.language = 'en'
+    return st.session_state.language
+
+def get_text(key):
+    translations = {
+        'en': {
+            'app_title': 'Professional Coffee Cupping App',
+            'app_subtitle': 'SCA Protocol Implementation',
+            'login': 'Login',
+            'register': 'Register',
+            'guest': 'Guest',
+            'logout': 'Logout',
+            'dashboard': 'Dashboard',
+            'cupping_sessions': 'Cupping Sessions',
+            'coffee_reviews': 'Coffee Reviews',
+            'profile': 'Profile',
+            'my_cupping_sessions': 'My Cupping Sessions',
+            'new_session': 'New Session',
+            'my_sessions': 'My Sessions',
+            'analysis': 'Analysis',
+            'flavor_wheel': 'Flavor Wheel',
+            'score_session': 'Score Session',
+            'view_samples': 'View Samples',
+            'view_results': 'View Results',
+            'delete': 'Delete',
+            'completed': 'Completed',
+            'welcome': 'Welcome'
+        },
+        'es': {
+            'app_title': 'App Profesional de Cata de Café',
+            'app_subtitle': 'Implementación Protocolo SCA',
+            'login': 'Iniciar Sesión',
+            'register': 'Registrarse',
+            'guest': 'Invitado',
+            'logout': 'Cerrar Sesión',
+            'dashboard': 'Panel Principal',
+            'cupping_sessions': 'Sesiones de Cata',
+            'coffee_reviews': 'Reseñas de Café',
+            'profile': 'Perfil',
+            'my_cupping_sessions': 'Mis Sesiones de Cata',
+            'new_session': 'Nueva Sesión',
+            'my_sessions': 'Mis Sesiones',
+            'analysis': 'Análisis',
+            'flavor_wheel': 'Rueda de Sabores',
+            'score_session': 'Calificar Sesión',
+            'view_samples': 'Ver Muestras',
+            'view_results': 'Ver Resultados',
+            'delete': 'Eliminar',
+            'completed': 'Completado',
+            'welcome': 'Bienvenido'
+        }
+    }
+    return translations.get(get_language(), {}).get(key, key)
+
 def main():
+    # Initialize data on app start
+    init_data()
+    
+    # Language selector
+    col1, col2 = st.columns([4, 1])
+    with col2:
+        language_options = {"🇺🇸 English": "en", "🇪🇸 Español": "es"}
+        selected_lang = st.selectbox(
+            "🌐",
+            options=list(language_options.keys()),
+            index=0 if get_language() == 'en' else 1,
+            key="language_selector"
+        )
+        if language_options[selected_lang] != get_language():
+            st.session_state.language = language_options[selected_lang]
+            st.rerun()
+    
     # Header
-    st.markdown("""
+    st.markdown(f"""
     <div style="background: linear-gradient(135deg, #8B4513, #D2B48C); padding: 2rem; border-radius: 15px; text-align: center; margin-bottom: 2rem;">
-        <h1 style="color: white; margin: 0; font-size: 3rem;">☕ Professional Coffee Cupping App</h1>
-        <p style="color: #F5F5DC; margin: 0; font-size: 1.2rem;">SCA Protocol Implementation</p>
+        <h1 style="color: white; margin: 0; font-size: 3rem;">☕ {get_text("app_title")}</h1>
+        <p style="color: #F5F5DC; margin: 0; font-size: 1.2rem;">{get_text("app_subtitle")}</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -58,7 +171,7 @@ def show_login():
     with col2:
         st.markdown('<div class="coffee-card">', unsafe_allow_html=True)
         
-        tab1, tab2, tab3 = st.tabs(["🔐 Login", "🆕 Register", "👥 Guest"])
+        tab1, tab2, tab3 = st.tabs([f"🔐 {get_text('login')}", f"🆕 {get_text('register')}", f"👥 {get_text('guest')}"])
         
         with tab1:
             show_login_form()
@@ -78,34 +191,39 @@ def show_main_app():
     col1, col2, col3 = st.columns([2, 2, 1])
     
     with col1:
-        st.markdown(f"## 👋 Welcome, {user_data.get('name', 'User')}!")
+        st.markdown(f"## 👋 {get_text('welcome')}, {user_data.get('name', 'User')}!")
         
     with col2:
         st.markdown(f"📧 **{user_data.get('email', '')}**")
         st.markdown(f"🏢 **{user_data.get('company', '')}**")
     
     with col3:
-        if st.button("Logout"):
+        if st.button(get_text("logout")):
             st.session_state.logged_in = False
             st.rerun()
     
     # Sidebar navigation
     with st.sidebar:
         st.markdown("### ☕ Navigation")
-        page = st.radio("", ["📊 Dashboard", "☕ Cupping Sessions", "📝 Coffee Reviews", "👤 Profile"])
+        page = st.radio("", [
+            f"📊 {get_text('dashboard')}", 
+            f"☕ {get_text('cupping_sessions')}", 
+            f"📝 {get_text('coffee_reviews')}", 
+            f"👤 {get_text('profile')}"
+        ])
     
     # Main content
-    if page == "📊 Dashboard":
+    if page.endswith(get_text('dashboard')):
         show_dashboard()
-    elif page == "☕ Cupping Sessions":
+    elif page.endswith(get_text('cupping_sessions')):
         show_cupping_sessions()
-    elif page == "📝 Coffee Reviews":
+    elif page.endswith(get_text('coffee_reviews')):
         show_coffee_reviews()
-    elif page == "👤 Profile":
+    elif page.endswith(get_text('profile')):
         show_profile()
 
 def show_dashboard():
-    st.title("📊 Dashboard")
+    st.title(f"📊 {get_text('dashboard')}")
     
     col1, col2, col3, col4 = st.columns(4)
     
@@ -355,34 +473,101 @@ def show_new_cupping_session():
                 st.balloons()
 
 def show_my_cupping_sessions():
-    st.subheader("📋 My Cupping Sessions")
+    st.subheader(f"📋 {get_text('my_cupping_sessions')}")
     
     if 'cupping_sessions' in st.session_state and st.session_state.cupping_sessions:
         for i, session in enumerate(st.session_state.cupping_sessions):
+            # Status color coding
+            if session["status"] == "Scored":
+                status_color = "#28a745"
+                status_icon = "✅"
+            else:
+                status_color = "#ffc107"
+                status_icon = "⏳"
+            
+            # Calculate average score if scored
+            avg_score = ""
+            if session["status"] == "Scored" and 'scores' in session:
+                total_avg = sum(score['total'] for score in session['scores']) / len(session['scores'])
+                avg_score = f"<span style='font-size: 1.5rem; color: {status_color}; font-weight: bold;'>⭐ {total_avg:.1f}</span>"
+            
+            # Enhanced session card
             st.markdown(f'''
-            <div class="coffee-card">
-                <h4>☕ {session["name"]}</h4>
-                <p><strong>📅 Date:</strong> {session["date"]} | <strong>👨‍🔬 Cupper:</strong> {session["cupper"]}</p>
-                <p><strong>🔬 Protocol:</strong> {session["protocol"]} | <strong>🌡️ Water:</strong> {session["water_temp"]}°C</p>
-                <p><strong>🌱 Samples:</strong> {len(session["samples"])} | <strong>☕ Cups/Sample:</strong> {session["cups_per_sample"]}</p>
-                <p><strong>👁️ Blind:</strong> {"Yes" if session["blind"] else "No"} | <strong>📊 Status:</strong> {session["status"]}</p>
-                <p style="font-size: 0.9rem; color: #666;"><strong>📅 Created:</strong> {session["created"]}</p>
+            <div style="background: linear-gradient(145deg, #ffffff, #f8f9fa); border: 2px solid #8B4513; border-radius: 15px; padding: 1.5rem; margin: 1rem 0; box-shadow: 0 6px 20px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                    <div>
+                        <h3 style="margin: 0; color: #8B4513; font-size: 1.4rem;">☕ {session["name"]}</h3>
+                        <p style="margin: 0.5rem 0; color: #666; font-size: 1rem;">
+                            📅 <strong>{session["date"]}</strong> | 👨‍🔬 <strong>{session["cupper"]}</strong>
+                        </p>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="background: {status_color}; color: white; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem; margin-bottom: 0.5rem;">
+                            {status_icon} {session["status"]}
+                        </div>
+                        {avg_score}
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; background: #f8f9fa; padding: 1rem; border-radius: 10px;">
+                    <div>
+                        <strong style="color: #8B4513;">🔬 Protocol:</strong><br>
+                        <span style="color: #333;">{session["protocol"]}</span>
+                    </div>
+                    <div>
+                        <strong style="color: #8B4513;">🌡️ Water Temperature:</strong><br>
+                        <span style="color: #333;">{session["water_temp"]}°C</span>
+                    </div>
+                    <div>
+                        <strong style="color: #8B4513;">🌱 Samples:</strong><br>
+                        <span style="color: #333;">{len(session["samples"])} samples</span>
+                    </div>
+                    <div>
+                        <strong style="color: #8B4513;">☕ Cups per Sample:</strong><br>
+                        <span style="color: #333;">{session["cups_per_sample"]} cups</span>
+                    </div>
+                    <div>
+                        <strong style="color: #8B4513;">👁️ Blind Cupping:</strong><br>
+                        <span style="color: #333;">{"Yes" if session["blind"] else "No"}</span>
+                    </div>
+                    <div>
+                        <strong style="color: #8B4513;">📅 Created:</strong><br>
+                        <span style="color: #666; font-size: 0.9rem;">{session["created"]}</span>
+                    </div>
+                </div>
             </div>
             ''', unsafe_allow_html=True)
             
-            # Action buttons
-            col1, col2, col3 = st.columns(3)
+            # Action buttons with better styling
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
-                if st.button(f"📊 Score Session", key=f"score_{i}"):
-                    st.session_state.scoring_session = i
-                    st.rerun()
+                if session["status"] != "Scored":
+                    if st.button(f"📊 {get_text('score_session')}", key=f"score_{i}", use_container_width=True):
+                        st.session_state.scoring_session = i
+                        st.rerun()
+                else:
+                    st.success(f"✅ {get_text('completed')}")
+            
             with col2:
-                if st.button(f"📋 View Samples", key=f"view_{i}"):
+                if st.button(f"📋 {get_text('view_samples')}", key=f"view_{i}", use_container_width=True):
                     st.session_state.viewing_session = i
+            
             with col3:
                 if session["status"] == "Scored":
-                    if st.button(f"📈 View Results", key=f"results_{i}"):
+                    if st.button(f"📈 {get_text('view_results')}", key=f"results_{i}", use_container_width=True):
                         st.session_state.results_session = i
+                else:
+                    st.button(f"📈 {get_text('view_results')}", disabled=True, use_container_width=True)
+            
+            with col4:
+                if st.button(f"🗑️ {get_text('delete')}", key=f"delete_{i}", use_container_width=True):
+                    if st.session_state.get(f'confirm_delete_{i}', False):
+                        del st.session_state.cupping_sessions[i]
+                        st.success("Session deleted")
+                        st.rerun()
+                    else:
+                        st.session_state[f'confirm_delete_{i}'] = True
+                        st.warning("Click again to confirm deletion")
         
         # Show scoring interface
         if 'scoring_session' in st.session_state:
