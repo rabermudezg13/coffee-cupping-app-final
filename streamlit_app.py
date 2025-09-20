@@ -651,7 +651,7 @@ def get_text(key):
     translations = {
         'en': {
             'app_title': 'Professional Coffee Cupping App',
-            'app_subtitle': 'SCA Protocol Implementation',
+            'app_subtitle': 'Professional Protocol Implementation',
             'login': 'Login',
             'register': 'Register',
             'guest': 'Guest',
@@ -685,7 +685,7 @@ def get_text(key):
         },
         'es': {
             'app_title': 'App Profesional de Cata de Café',
-            'app_subtitle': 'Implementación Protocolo SCA',
+            'app_subtitle': 'Implementación Protocolo Profesional',
             'login': 'Iniciar Sesión',
             'register': 'Registrarse',
             'guest': 'Invitado',
@@ -742,7 +742,7 @@ def main():
     st.markdown(f"""
     <div style="background: linear-gradient(135deg, #8B4513, #D2B48C); padding: 2rem; border-radius: 15px; text-align: center; margin-bottom: 2rem;">
         <h1 style="color: white; margin: 0; font-size: 3rem;">☕ {get_text("app_title")}</h1>
-        <p style="color: #F5F5DC; margin: 0; font-size: 1.2rem;">{get_text("app_subtitle")}</p>
+        <p style="color: #F5F5DC; margin: 0; font-size: 1.2rem;">Professional Coffee Cupping Platform</p>
     </div>
     """, unsafe_allow_html=True)
     
