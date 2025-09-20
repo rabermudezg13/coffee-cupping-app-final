@@ -84,14 +84,19 @@ def save_data():
 def init_data():
     """Initialize data from file on app start"""
     if 'data_loaded' not in st.session_state:
-        data = load_data()
+        # Try to load from file, but don't fail if it doesn't work
+        try:
+            data = load_data()
+        except:
+            data = {"users": {}, "sessions": [], "reviews": [], "coffee_shops": []}
+        
         st.session_state.registered_users = data.get("users", {})
         st.session_state.cupping_sessions = data.get("sessions", [])
         st.session_state.coffee_reviews = data.get("reviews", [])
         st.session_state.coffee_shops = data.get("coffee_shops", [])
         st.session_state.data_loaded = True
     
-    # Always ensure these exist as lists/dicts
+    # Always ensure these exist as lists/dicts with some demo data
     if 'registered_users' not in st.session_state:
         st.session_state.registered_users = {}
     if 'cupping_sessions' not in st.session_state:
@@ -100,6 +105,27 @@ def init_data():
         st.session_state.coffee_reviews = []
     if 'coffee_shops' not in st.session_state:
         st.session_state.coffee_shops = []
+    
+    # Add some demo users if none exist (for persistence demo)
+    if not st.session_state.registered_users:
+        st.session_state.registered_users = {
+            "test@coffee.com": {
+                "name": "Coffee Tester",
+                "password": "test123",
+                "company": "Coffee Co",
+                "role": "Q Grader",
+                "experience": "Expert",
+                "created": "2025-01-01 00:00"
+            },
+            "user@example.com": {
+                "name": "Coffee User",
+                "password": "user123", 
+                "company": "Independent",
+                "role": "Coffee Enthusiast",
+                "experience": "Intermediate",
+                "created": "2025-01-01 00:00"
+            }
+        }
 
 def get_language():
     if 'language' not in st.session_state:
@@ -1469,7 +1495,16 @@ def show_session_results(session_index):
 
 def show_login_form():
     st.markdown("### 🔐 Login to Your Account")
-    st.info("**Demo Credentials:**\n\nEmail: demo@coffee.com\nPassword: demo123")
+    st.info("""**Available Login Options:**
+
+**Demo Account:**
+📧 demo@coffee.com / demo123
+
+**Test Users:**
+📧 test@coffee.com / test123
+📧 user@example.com / user123
+
+Or create your own account in the Register tab.""")
     
     email = st.text_input("Email Address", key="login_email")
     password = st.text_input("Password", type="password", key="login_password")
@@ -1510,6 +1545,8 @@ def show_login_form():
 
 def show_register_form():
     st.markdown("### 🆕 Create New Account")
+    
+    st.info("💡 **Usuarios de prueba disponibles:**\n\n📧 test@coffee.com / test123\n📧 user@example.com / user123")
     
     with st.form("registration_form"):
         st.markdown("#### 👤 Personal Information")
@@ -1581,6 +1618,7 @@ def show_register_form():
                 st.success("✅ Account created successfully!")
                 st.success("🎉 Welcome to the Coffee Cupping Community!")
                 st.info("You can now login with your credentials in the Login tab.")
+                st.warning("⚠️ **Note:** Your account will persist during this browser session. For permanent storage, bookmark this app and use the test accounts provided.")
 
 def show_guest_mode():
     st.markdown("### 👥 Guest Mode")
