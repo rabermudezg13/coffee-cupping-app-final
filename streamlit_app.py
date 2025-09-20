@@ -36,28 +36,46 @@ DATA_FILE = "coffee_app_data.json"
 
 def load_data():
     """Load data from JSON file"""
-    if os.path.exists(DATA_FILE):
-        try:
+    try:
+        if os.path.exists(DATA_FILE):
             with open(DATA_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                return data
-        except Exception as e:
-            st.error(f"Error loading data: {e}")
-    return {"users": {}, "sessions": {}, "reviews": {}}
+                # Validate data structure
+                if not isinstance(data, dict):
+                    return {"users": {}, "sessions": [], "reviews": []}
+                return {
+                    "users": data.get("users", {}),
+                    "sessions": data.get("sessions", []),
+                    "reviews": data.get("reviews", [])
+                }
+    except Exception as e:
+        # Don't show error to user, just use defaults
+        pass
+    return {"users": {}, "sessions": [], "reviews": []}
 
 def save_data():
-    """Save data to JSON file"""
+    """Save data to JSON file - handles Streamlit Cloud restrictions"""
     try:
         data = {
             "users": st.session_state.get('registered_users', {}),
             "sessions": st.session_state.get('cupping_sessions', []),
             "reviews": st.session_state.get('coffee_reviews', [])
         }
+        
+        # Validate data before saving
+        if not isinstance(data["users"], dict):
+            data["users"] = {}
+        if not isinstance(data["sessions"], list):
+            data["sessions"] = []
+        if not isinstance(data["reviews"], list):
+            data["reviews"] = []
+            
         with open(DATA_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         return True
-    except Exception as e:
-        st.error(f"Error saving data: {e}")
+    except Exception:
+        # Silently fail on Streamlit Cloud (read-only filesystem)
+        # Data will persist in session state during the session
         return False
 
 def init_data():
@@ -68,6 +86,14 @@ def init_data():
         st.session_state.cupping_sessions = data.get("sessions", [])
         st.session_state.coffee_reviews = data.get("reviews", [])
         st.session_state.data_loaded = True
+    
+    # Always ensure these exist as lists/dicts
+    if 'registered_users' not in st.session_state:
+        st.session_state.registered_users = {}
+    if 'cupping_sessions' not in st.session_state:
+        st.session_state.cupping_sessions = []
+    if 'coffee_reviews' not in st.session_state:
+        st.session_state.coffee_reviews = []
 
 def get_language():
     if 'language' not in st.session_state:
@@ -308,8 +334,10 @@ def show_coffee_reviews():
                 elif not preparation:
                     st.error("❌ Preparation method is required")
                 else:
-                    # Store review
+                    # Ensure coffee_reviews exists and is a list
                     if 'coffee_reviews' not in st.session_state:
+                        st.session_state.coffee_reviews = []
+                    elif not isinstance(st.session_state.coffee_reviews, list):
                         st.session_state.coffee_reviews = []
                     
                     review = {
@@ -332,9 +360,15 @@ def show_coffee_reviews():
                         'reviewer': user_data.get('name', 'User')
                     }
                     
-                    st.session_state.coffee_reviews.append(review)
-                    st.success("✅ Coffee review saved successfully!")
-                    st.balloons()
+                    try:
+                        st.session_state.coffee_reviews.append(review)
+                        # Auto-save after creating review
+                        save_data()
+                        st.success("✅ Coffee review saved successfully!")
+                        st.balloons()
+                    except Exception as e:
+                        st.error(f"Error saving review: {e}")
+                        st.session_state.coffee_reviews = []  # Reset if corrupted
     
     with tab2:
         st.subheader("📋 My Coffee Reviews")
@@ -451,8 +485,10 @@ def show_new_cupping_session():
             if not session_name:
                 st.error("❌ Session name is required")
             else:
-                # Store session
+                # Ensure cupping_sessions exists and is a list
                 if 'cupping_sessions' not in st.session_state:
+                    st.session_state.cupping_sessions = []
+                elif not isinstance(st.session_state.cupping_sessions, list):
                     st.session_state.cupping_sessions = []
                 
                 session = {
@@ -468,9 +504,15 @@ def show_new_cupping_session():
                     'status': 'Created'
                 }
                 
-                st.session_state.cupping_sessions.append(session)
-                st.success(f"✅ Created cupping session: '{session_name}' with {num_samples} samples")
-                st.balloons()
+                try:
+                    st.session_state.cupping_sessions.append(session)
+                    # Auto-save after creating session
+                    save_data()
+                    st.success(f"✅ Created cupping session: '{session_name}' with {num_samples} samples")
+                    st.balloons()
+                except Exception as e:
+                    st.error(f"Error creating session: {e}")
+                    st.session_state.cupping_sessions = []  # Reset if corrupted
 
 def show_my_cupping_sessions():
     st.subheader(f"📋 {get_text('my_cupping_sessions')}")
