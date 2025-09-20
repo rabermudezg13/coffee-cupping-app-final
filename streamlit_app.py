@@ -514,84 +514,159 @@ def show_scoring_interface(session_index):
     st.subheader("📊 SCA Cupping Score")
     
     session = st.session_state.cupping_sessions[session_index]
+    st.markdown(f"### ☕ Scoring: {session['name']}")
     
-    with st.form(f"scoring_form_{session_index}"):
-        st.markdown(f"### ☕ Scoring: {session['name']}")
+    # Initialize if not exists
+    if f'scoring_data_{session_index}' not in st.session_state:
+        st.session_state[f'scoring_data_{session_index}'] = {}
+    
+    sample_scores = []
+    
+    for i, sample in enumerate(session['samples']):
+        st.markdown(f"#### Sample {i+1}: {sample['name']} ({sample['origin']})")
         
-        sample_scores = []
+        col1, col2, col3 = st.columns([1, 1, 1])
         
-        for i, sample in enumerate(session['samples']):
-            st.markdown(f"#### Sample {i+1}: {sample['name']} ({sample['origin']})")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # SCA Categories (6-10 scale)
-                fragrance = st.slider(f"Fragrance/Aroma", 6.0, 10.0, 8.0, 0.25, key=f"fragrance_{session_index}_{i}")
-                flavor = st.slider(f"Flavor", 6.0, 10.0, 8.0, 0.25, key=f"flavor_{session_index}_{i}")
-                aftertaste = st.slider(f"Aftertaste", 6.0, 10.0, 8.0, 0.25, key=f"aftertaste_{session_index}_{i}")
-                acidity = st.slider(f"Acidity", 6.0, 10.0, 8.0, 0.25, key=f"acidity_{session_index}_{i}")
-                body = st.slider(f"Body", 6.0, 10.0, 8.0, 0.25, key=f"body_{session_index}_{i}")
-            
-            with col2:
-                balance = st.slider(f"Balance", 6.0, 10.0, 8.0, 0.25, key=f"balance_{session_index}_{i}")
-                uniformity = st.slider(f"Uniformity", 0, 10, 10, 2, key=f"uniformity_{session_index}_{i}")
-                clean_cup = st.slider(f"Clean Cup", 0, 10, 10, 2, key=f"clean_{session_index}_{i}")
-                sweetness = st.slider(f"Sweetness", 0, 10, 10, 2, key=f"sweetness_{session_index}_{i}")
-                overall = st.slider(f"Overall", 6.0, 10.0, 8.0, 0.25, key=f"overall_{session_index}_{i}")
+        with col1:
+            st.markdown("**🎯 SCA Categories**")
+            # SCA Categories (6-10 scale) - NO FORM
+            fragrance = st.slider(f"Fragrance/Aroma", 6.0, 10.0, 8.0, 0.25, key=f"fragrance_{session_index}_{i}")
+            flavor = st.slider(f"Flavor", 6.0, 10.0, 8.0, 0.25, key=f"flavor_{session_index}_{i}")
+            aftertaste = st.slider(f"Aftertaste", 6.0, 10.0, 8.0, 0.25, key=f"aftertaste_{session_index}_{i}")
+            acidity = st.slider(f"Acidity", 6.0, 10.0, 8.0, 0.25, key=f"acidity_{session_index}_{i}")
+            body = st.slider(f"Body", 6.0, 10.0, 8.0, 0.25, key=f"body_{session_index}_{i}")
+        
+        with col2:
+            st.markdown("**⚖️ Quality Factors**")
+            balance = st.slider(f"Balance", 6.0, 10.0, 8.0, 0.25, key=f"balance_{session_index}_{i}")
+            uniformity = st.slider(f"Uniformity", 0, 10, 10, 2, key=f"uniformity_{session_index}_{i}")
+            clean_cup = st.slider(f"Clean Cup", 0, 10, 10, 2, key=f"clean_{session_index}_{i}")
+            sweetness = st.slider(f"Sweetness", 0, 10, 10, 2, key=f"sweetness_{session_index}_{i}")
+            overall = st.slider(f"Overall", 6.0, 10.0, 8.0, 0.25, key=f"overall_{session_index}_{i}")
             
             # Defects
             defects = st.number_input(f"Defects (subtract)", 0, 10, 0, key=f"defects_{session_index}_{i}")
-            
-            # Calculate total
+        
+        with col3:
+            st.markdown("**📊 Live Score**")
+            # Calculate total DYNAMICALLY
             total = fragrance + flavor + aftertaste + acidity + body + balance + uniformity + clean_cup + sweetness + overall - defects
             
-            st.metric(f"Sample {i+1} Total Score", f"{total:.2f}", f"{total-80:.2f}")
+            # Show score with color coding
+            if total >= 90:
+                score_color = "#28a745"  # Green
+                grade = "🏆 Outstanding"
+            elif total >= 85:
+                score_color = "#17a2b8"  # Blue
+                grade = "⭐ Excellent"
+            elif total >= 80:
+                score_color = "#ffc107"  # Yellow
+                grade = "👍 Very Good"
+            elif total >= 75:
+                score_color = "#fd7e14"  # Orange
+                grade = "👌 Good"
+            else:
+                score_color = "#dc3545"  # Red
+                grade = "⚠️ Fair"
             
-            # Tasting notes
-            notes = st.text_area(f"Tasting Notes", key=f"notes_{session_index}_{i}", height=80)
+            st.markdown(f'''
+            <div style="background: {score_color}; color: white; padding: 1rem; border-radius: 10px; text-align: center; margin: 1rem 0;">
+                <h2 style="margin: 0; font-size: 2rem;">{total:.2f}</h2>
+                <p style="margin: 0; font-weight: bold;">{grade}</p>
+            </div>
+            ''', unsafe_allow_html=True)
             
-            sample_scores.append({
-                'sample_name': sample['name'],
-                'fragrance': fragrance,
-                'flavor': flavor,
-                'aftertaste': aftertaste,
-                'acidity': acidity,
-                'body': body,
-                'balance': balance,
-                'uniformity': uniformity,
-                'clean_cup': clean_cup,
-                'sweetness': sweetness,
-                'overall': overall,
-                'defects': defects,
-                'total': total,
-                'notes': notes
-            })
-            
-            if i < len(session['samples']) - 1:
-                st.markdown("---")
+            st.metric("vs Specialty (80)", f"{total-80:+.2f}", f"{((total-80)/80*100):+.1f}%")
         
-        # Session notes
-        st.markdown("### 📝 Session Notes")
-        session_notes = st.text_area("Overall session comments", key=f"session_notes_{session_index}")
+        # Flavor Notes Section
+        st.markdown("### 🎨 Flavor Profile")
         
-        col1, col2 = st.columns(2)
+        col1, col2 = st.columns([2, 1])
+        
         with col1:
-            if st.form_submit_button("💾 Save Scores", use_container_width=True):
-                # Save scores to session
-                st.session_state.cupping_sessions[session_index]['scores'] = sample_scores
-                st.session_state.cupping_sessions[session_index]['session_notes'] = session_notes
-                st.session_state.cupping_sessions[session_index]['status'] = 'Scored'
-                st.session_state.cupping_sessions[session_index]['scored_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
-                
-                st.success("✅ Scores saved successfully!")
-                del st.session_state.scoring_session
-                st.rerun()
+            # Quick flavor buttons from SCA wheel
+            st.markdown("**Quick Flavor Selection:**")
+            
+            # Flavor categories in compact form
+            flavor_buttons = {
+                "🍊 Fruity": ["Citrus", "Berry", "Stone Fruit", "Tropical"],
+                "🌸 Floral": ["Rose", "Jasmine", "Tea-like"],
+                "🍯 Sweet": ["Caramel", "Honey", "Chocolate", "Vanilla"],
+                "🥜 Nutty": ["Almond", "Hazelnut", "Walnut"],
+                "🌿 Green": ["Fresh", "Herb-like"],
+                "🔥 Roasted": ["Bread", "Smoky", "Cereal"]
+            }
+            
+            selected_flavors = []
+            
+            for category, flavors in flavor_buttons.items():
+                st.markdown(f"**{category}:**")
+                cols = st.columns(len(flavors))
+                for j, flavor in enumerate(flavors):
+                    with cols[j]:
+                        if st.checkbox(flavor, key=f"flavor_{session_index}_{i}_{category}_{flavor}"):
+                            selected_flavors.append(flavor)
+            
+            # Manual notes
+            manual_notes = st.text_area(f"Additional Tasting Notes", key=f"notes_{session_index}_{i}", height=80,
+                                      placeholder="e.g., bright, clean finish, wine-like...")
         
         with col2:
-            if st.form_submit_button("❌ Cancel", use_container_width=True):
-                del st.session_state.scoring_session
-                st.rerun()
+            st.markdown("**Selected Flavors:**")
+            if selected_flavors:
+                for flavor in selected_flavors:
+                    st.markdown(f"🏷️ {flavor}")
+                flavor_text = ", ".join(selected_flavors)
+            else:
+                flavor_text = ""
+                st.info("Select flavors from categories")
+            
+            # Combine flavor notes
+            combined_notes = f"{flavor_text}. {manual_notes}".strip('. ')
+        
+        sample_scores.append({
+            'sample_name': sample['name'],
+            'fragrance': fragrance,
+            'flavor': flavor,
+            'aftertaste': aftertaste,
+            'acidity': acidity,
+            'body': body,
+            'balance': balance,
+            'uniformity': uniformity,
+            'clean_cup': clean_cup,
+            'sweetness': sweetness,
+            'overall': overall,
+            'defects': defects,
+            'total': total,
+            'notes': combined_notes,
+            'selected_flavors': selected_flavors
+        })
+        
+        if i < len(session['samples']) - 1:
+            st.markdown("---")
+    
+    # Session notes
+    st.markdown("### 📝 Session Notes")
+    session_notes = st.text_area("Overall session comments", key=f"session_notes_{session_index}")
+    
+    # Save/Cancel buttons (outside form for immediate updates)
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("💾 Save Scores", use_container_width=True, key=f"save_{session_index}"):
+            # Save scores to session
+            st.session_state.cupping_sessions[session_index]['scores'] = sample_scores
+            st.session_state.cupping_sessions[session_index]['session_notes'] = session_notes
+            st.session_state.cupping_sessions[session_index]['status'] = 'Scored'
+            st.session_state.cupping_sessions[session_index]['scored_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
+            
+            st.success("✅ Scores saved successfully!")
+            del st.session_state.scoring_session
+            st.rerun()
+    
+    with col2:
+        if st.button("❌ Cancel", use_container_width=True, key=f"cancel_{session_index}"):
+            del st.session_state.scoring_session
+            st.rerun()
 
 def show_session_results(session_index):
     st.markdown("---")
