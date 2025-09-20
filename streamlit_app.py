@@ -1284,7 +1284,7 @@ def show_profile():
 def show_cupping_sessions():
     st.title("☕ Professional Cupping Sessions")
     
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🆕 New Session", "📋 My Sessions", "📊 Analysis", "🎨 Flavor Wheel", "☕ Coffee Bags"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🆕 New Session", "📋 My Sessions", "📊 Analysis", "☕ Coffee Bags"])
     
     with tab1:
         show_new_cupping_session()
@@ -1296,9 +1296,6 @@ def show_cupping_sessions():
         show_cupping_analysis()
     
     with tab4:
-        show_flavor_wheel()
-    
-    with tab5:
         show_coffee_bags_analysis()
 
 def show_new_cupping_session():
@@ -1737,75 +1734,6 @@ def show_coffee_bags_analysis():
     else:
         st.info("☕ No coffee bag reviews yet. Create reviews in the Coffee Reviews section to see analysis.")
 
-def show_flavor_wheel():
-    st.subheader("🎨 SCA Flavor Wheel")
-    
-    st.success("✅ SCA Flavor Wheel - Professional Implementation")
-    
-    # SCA Flavor categories
-    flavor_categories = {
-        "🍊 Fruity": {
-            "Citrus": ["Grapefruit", "Orange", "Lemon", "Lime"],
-            "Berry": ["Blackberry", "Raspberry", "Blueberry", "Strawberry"],
-            "Stone Fruit": ["Peach", "Apricot", "Plum", "Cherry"],
-            "Tropical": ["Pineapple", "Mango", "Papaya", "Coconut"]
-        },
-        "🌸 Floral": {
-            "Floral": ["Rose", "Jasmine", "Lavender", "Chamomile"],
-            "Tea-like": ["Black Tea", "Earl Grey"]
-        },
-        "🍯 Sweet": {
-            "Brown Sugar": ["Molasses", "Maple Syrup", "Caramel", "Honey"],
-            "Vanilla": ["Vanilla"],
-            "Chocolate": ["Dark Chocolate", "Milk Chocolate"]
-        },
-        "🥜 Nutty": {
-            "Tree Nuts": ["Almond", "Hazelnut", "Walnut", "Pecan"],
-            "Legumes": ["Peanut"]
-        },
-        "🌿 Green/Vegetative": {
-            "Fresh": ["Green", "Underripe"],
-            "Dried": ["Hay", "Herb-like"]
-        },
-        "🔥 Roasted": {
-            "Grain": ["Bread", "Malt", "Rice"],
-            "Burnt": ["Smoky", "Ashy", "Acrid"]
-        }
-    }
-    
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        st.markdown("### 🎯 Select Flavor Descriptors")
-        selected_flavors = []
-        
-        for category, subcategories in flavor_categories.items():
-            with st.expander(category):
-                for subcat, flavors in subcategories.items():
-                    st.markdown(f"**{subcat}:**")
-                    cols = st.columns(min(len(flavors), 3))
-                    for i, flavor in enumerate(flavors):
-                        with cols[i % len(cols)]:
-                            if st.checkbox(flavor, key=f"flavor_{category}_{subcat}_{flavor}"):
-                                selected_flavors.append(flavor)
-    
-    with col2:
-        st.markdown("### 📋 Selected Flavors")
-        if selected_flavors:
-            for flavor in selected_flavors:
-                st.markdown(f"🏷️ **{flavor}**")
-            st.markdown(f"**Total:** {len(selected_flavors)}")
-        else:
-            st.info("Select flavors from the wheel")
-        
-        st.markdown("---")
-        st.markdown("### 📖 SCA Guidelines")
-        st.markdown("""
-        - **Primary:** Most prominent notes
-        - **Secondary:** Supporting flavors  
-        - **Finish:** Aftertaste descriptors
-        - **Limit:** 8-10 descriptors max
-        """)
 
 def show_scoring_interface(session_index):
     st.markdown("---")
