@@ -2,3 +2,7 @@ streamlit
 reportlab
 matplotlib
 numpy
+plotly
+pandas
+qrcode[pil]
+pillow
